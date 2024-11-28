@@ -2,7 +2,7 @@
 /*
  Plugin Name: Update LearnDash Topics
  Description: A tool to update LearnDash topics based on a given course ID.
- Version: 1.1
+ Version: 1.2
  Author: Your Name
 */
 add_action('admin_menu', 'add_update_learndash_topics_page');
@@ -187,16 +187,15 @@ add_action('wp_ajax_fetch_lessons', function() {
     global $wpdb;
 
     $course_id = intval($_POST['course_id']);
-    error_log("Fetching lessons for course ID: $course_id");
-
     $lessons = $wpdb->get_col($wpdb->prepare(
-        "SELECT post_id FROM {$wpdb->prefix}postmeta 
-         WHERE meta_key = 'course_id' 
-         AND meta_value = %d", 
+        "SELECT DISTINCT p.ID FROM {$wpdb->prefix}posts p
+         INNER JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id
+         WHERE pm.meta_key = 'course_id'
+         AND pm.meta_value = %d
+         AND p.post_type = 'sfwd-lessons'", 
         $course_id
     ));
 
-    error_log("Lessons found: " . implode(',', $lessons));
     wp_send_json_success($lessons);
 });
 
@@ -205,7 +204,22 @@ add_action('wp_ajax_process_lesson', function() {
     global $wpdb;
 
     $lesson_id = intval($_POST['lesson_id']);
-    error_log("Processing lesson ID: $lesson_id");
+
+    // Validate that the post is actually a lesson
+    $is_lesson = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}posts 
+         WHERE ID = %d AND post_type = 'sfwd-lessons'", 
+        $lesson_id
+    ));
+
+    if (!$is_lesson) {
+        wp_send_json_success("Skipped post ID $lesson_id: Not a lesson.");
+        return;
+    }
+
+    // Proceed with processing the lesson
+    $logs = [];
+    $logs[] = "Processing lesson ID: $lesson_id";
 
     $topics = $wpdb->get_col($wpdb->prepare(
         "SELECT post_id FROM {$wpdb->prefix}postmeta 
@@ -215,12 +229,13 @@ add_action('wp_ajax_process_lesson', function() {
     ));
 
     if (empty($topics)) {
-        error_log("No topics found for lesson ID: $lesson_id");
-        wp_send_json_success("No topics found for lesson ID: $lesson_id");
+        $logs[] = "No topics found for lesson ID: $lesson_id";
+        wp_send_json_success(implode("\n", $logs));
         return;
     }
 
-    $logs = [];
+    $logs[] = "Found " . count($topics) . " topics for lesson ID: $lesson_id";
+
     foreach ($topics as $topic_id) {
         $topic_content = $wpdb->get_var($wpdb->prepare(
             "SELECT post_content FROM {$wpdb->prefix}posts 
@@ -246,4 +261,5 @@ add_action('wp_ajax_process_lesson', function() {
 
     wp_send_json_success(implode("\n", $logs));
 });
+
 
