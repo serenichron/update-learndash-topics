@@ -1,0 +1,16 @@
+{
+    "name": "serenichron/update-learndash-topics",
+    "description": "A WordPress plugin to clean up Divi content in LearnDash topics by isolating [ld_quiz] shortcodes.",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Vlad Tudorie",
+            "email": "vlad@serenichron.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "composer/installers": "~1.0"
+    }
+}
