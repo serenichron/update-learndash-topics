@@ -1,10 +1,11 @@
 <?php
 /*
- Plugin Name: Update LearnDash Topics
- Description: A tool to update LearnDash topics based on a given course ID.
- Version: 1.2
- Author: Your Name
+Plugin Name: LearnDash Topic Content Cleaner
+Description: A tool to clean up Divi content in LearnDash topics by isolating [ld_quiz] shortcodes. Specifically designed for LearnDash courses with topics built using the Divi Builder.
+Version: 1.1.2
+Author: Vlad Tudorie
 */
+
 add_action('admin_menu', 'add_update_learndash_topics_page');
 
 function add_update_learndash_topics_page() {
@@ -22,12 +23,19 @@ function add_update_learndash_topics_page() {
 function render_update_topics_page() {
     ?>
     <div class="wrap">
-        <h1>Update LearnDash Topics</h1>
+        <h1>LearnDash Topic Content Cleaner</h1>
+        <p>This plugin cleans up Divi content in LearnDash topics. It isolates the <code>[ld_quiz]</code> shortcode and removes other unnecessary content from topics within a specified course.</p>
+        <p>To use this tool:
+            <ol>
+                <li>Enter the Course ID for the LearnDash course whose topics you want to clean up.</li>
+                <li>Click <strong>Run Script</strong> to process the topics.</li>
+            </ol>
+        </p>
         <form id="update_topics_form" method="post">
             <p>
                 <label for="course_id">Enter Course ID:</label>
                 <input type="number" name="course_id" id="course_id" required>
-                <span title="Enter the ID of the LearnDash course for which you want to update topic content.">❓</span>
+                <span title="Enter the ID of the LearnDash course for which you want to clean up topic content.">❓</span>
             </p>
             <p>
                 <button type="submit" class="button button-primary">Run Script</button>
@@ -44,50 +52,60 @@ add_action('admin_footer', function() {
     // Check if we are on the right admin page
     if (isset($_GET['page']) && $_GET['page'] === 'update-learndash-topics') {
         ?>
-        <script>
-            (function($) {
-                let lessons = [];
-                let courseId = 0;
-                let currentIndex = 0;
+        <script>(function($) {
+    let lessons = [];
+    let courseId = 0;
+    let currentIndex = 0;
 
-                $('#update_topics_form').on('submit', function(e) {
-                    e.preventDefault();
+    // Handle the Run Script button
+    $('#update_topics_form').on('submit', function(e) {
+        e.preventDefault();
 
-                    courseId = $('#course_id').val();
-                    if (!courseId) {
-                        alert('Please enter a Course ID.');
-                        return;
-                    }
+        // Reset state variables
+        lessons = [];
+        courseId = 0;
+        currentIndex = 0;
 
-                    $('#execution-log').html('<p>Fetching lessons...</p>');
+        // Get the course ID
+        courseId = $('#course_id').val();
+        if (!courseId) {
+            alert('Please enter a Course ID.');
+            return;
+        }
 
-                    $.post(ajaxurl, { action: 'fetch_lessons', course_id: courseId }, function(response) {
-                        lessons = response.data;
-                        if (lessons.length > 0) {
-                            $('#execution-log').append('<p>Found ' + lessons.length + ' lessons. Starting...</p>');
-                            processLesson();
-                        } else {
-                            $('#execution-log').append('<p>No lessons found for course ID ' + courseId + '.</p>');
-                        }
-                    });
-                });
+        // Reset log area
+        $('#execution-log').html('<p>Fetching lessons...</p>');
 
-                function processLesson() {
-                    if (currentIndex >= lessons.length) {
-                        $('#execution-log').append('<p>All lessons processed successfully.</p>');
-                        return;
-                    }
+        // Fetch lessons for the course
+        $.post(ajaxurl, { action: 'fetch_lessons', course_id: courseId }, function(response) {
+            lessons = response.data;
+            if (lessons.length > 0) {
+                $('#execution-log').append('<p>Found ' + lessons.length + ' lessons. Starting...</p>');
+                processLesson();
+            } else {
+                $('#execution-log').append('<p>No lessons found for course ID ' + courseId + '.</p>');
+            }
+        });
+    });
 
-                    let lessonId = lessons[currentIndex];
-                    $('#execution-log').append('<p>Processing lesson ID: ' + lessonId + '...</p>');
+    // Process each lesson via AJAX
+    function processLesson() {
+        if (currentIndex >= lessons.length) {
+            $('#execution-log').append('<p>All lessons processed successfully.</p>');
+            return;
+        }
 
-                    $.post(ajaxurl, { action: 'process_lesson', lesson_id: lessonId }, function(response) {
-                        $('#execution-log').append('<pre>' + response.data + '</pre>');
-                        currentIndex++;
-                        processLesson();
-                    });
-                }
-            })(jQuery);
+        let lessonId = lessons[currentIndex];
+        $('#execution-log').append('<p>Processing lesson ID: ' + lessonId + '...</p>');
+
+        // Fetch and process topics for the current lesson
+        $.post(ajaxurl, { action: 'process_lesson', lesson_id: lessonId }, function(response) {
+            $('#execution-log').append('<pre>' + response.data + '</pre>');
+            currentIndex++;
+            processLesson();
+        });
+    }
+})(jQuery);
         </script>
         <?php
     }
