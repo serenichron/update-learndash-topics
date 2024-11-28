@@ -1,25 +1,46 @@
 <?php
+namespace LDTopicCleaner;
+
+if (!defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
+
 /*
 Plugin Name: LearnDash Topic Content Cleaner
 Description: A tool to clean up Divi content in LearnDash topics by isolating [ld_quiz] shortcodes. Specifically designed for LearnDash courses with topics built using the Divi Builder.
-Version: 1.1.2
+Version: 1.1.3
 Author: Vlad Tudorie
 */
 
-add_action('admin_menu', 'add_update_learndash_topics_page');
 
+// Load admin-only functionality
+if (is_admin()) {
+    add_action('admin_menu', __NAMESPACE__ . '\\add_update_learndash_topics_page');
+    add_action('admin_footer', __NAMESPACE__ . '\\enqueue_admin_scripts');
+}
+
+// Register AJAX handlers
+add_action('wp_ajax_fetch_lessons', __NAMESPACE__ . '\\fetch_lessons');
+add_action('wp_ajax_process_lesson', __NAMESPACE__ . '\\process_lesson');
+
+/**
+ * Add the admin menu page.
+ */
 function add_update_learndash_topics_page() {
     add_menu_page(
-        'Update LearnDash Topics', // Page title
-        'Update Topics',           // Menu title
-        'manage_options',          // Capability
-        'update-learndash-topics', // Menu slug
-        'render_update_topics_page', // Callback function
-        'dashicons-admin-tools',   // Icon
-        100                        // Position
+        'LearnDash Topic Content Cleaner',
+        'Topic Cleaner',
+        'manage_options',
+        'update-learndash-topics',
+        __NAMESPACE__ . '\\render_update_topics_page',
+        'dashicons-admin-tools',
+        100
     );
 }
 
+/**
+ * Render the admin page.
+ */
 function render_update_topics_page() {
     ?>
     <div class="wrap">
@@ -48,163 +69,79 @@ function render_update_topics_page() {
     <?php
 }
 
-add_action('admin_footer', function() {
-    // Check if we are on the right admin page
+/**
+ * Enqueue admin scripts.
+ */
+function enqueue_admin_scripts() {
+    // Ensure scripts are only added on our admin page
     if (isset($_GET['page']) && $_GET['page'] === 'update-learndash-topics') {
         ?>
-        <script>(function($) {
-    let lessons = [];
-    let courseId = 0;
-    let currentIndex = 0;
+        <script>
+            (function($) {
+                let lessons = [];
+                let courseId = 0;
+                let currentIndex = 0;
 
-    // Handle the Run Script button
-    $('#update_topics_form').on('submit', function(e) {
-        e.preventDefault();
+                $('#update_topics_form').on('submit', function(e) {
+                    e.preventDefault();
 
-        // Reset state variables
-        lessons = [];
-        courseId = 0;
-        currentIndex = 0;
+                    // Reset state variables
+                    lessons = [];
+                    courseId = 0;
+                    currentIndex = 0;
 
-        // Get the course ID
-        courseId = $('#course_id').val();
-        if (!courseId) {
-            alert('Please enter a Course ID.');
-            return;
-        }
+                    courseId = $('#course_id').val();
+                    if (!courseId) {
+                        alert('Please enter a Course ID.');
+                        return;
+                    }
 
-        // Reset log area
-        $('#execution-log').html('<p>Fetching lessons...</p>');
+                    $('#execution-log').html('<p>Fetching lessons...</p>');
 
-        // Fetch lessons for the course
-        $.post(ajaxurl, { action: 'fetch_lessons', course_id: courseId }, function(response) {
-            lessons = response.data;
-            if (lessons.length > 0) {
-                $('#execution-log').append('<p>Found ' + lessons.length + ' lessons. Starting...</p>');
-                processLesson();
-            } else {
-                $('#execution-log').append('<p>No lessons found for course ID ' + courseId + '.</p>');
-            }
-        });
-    });
+                    // Fetch lessons for the course
+                    $.post(ajaxurl, { action: 'fetch_lessons', course_id: courseId }, function(response) {
+                        lessons = response.data;
+                        if (lessons.length > 0) {
+                            $('#execution-log').append('<p>Found ' + lessons.length + ' lessons. Starting...</p>');
+                            processLesson();
+                        } else {
+                            $('#execution-log').append('<p>No lessons found for course ID ' + courseId + '.</p>');
+                        }
+                    });
+                });
 
-    // Process each lesson via AJAX
-    function processLesson() {
-        if (currentIndex >= lessons.length) {
-            $('#execution-log').append('<p>All lessons processed successfully.</p>');
-            return;
-        }
+                function processLesson() {
+                    if (currentIndex >= lessons.length) {
+                        $('#execution-log').append('<p>All lessons processed successfully.</p>');
+                        return;
+                    }
 
-        let lessonId = lessons[currentIndex];
-        $('#execution-log').append('<p>Processing lesson ID: ' + lessonId + '...</p>');
+                    let lessonId = lessons[currentIndex];
+                    $('#execution-log').append('<p>Processing lesson ID: ' + lessonId + '...</p>');
 
-        // Fetch and process topics for the current lesson
-        $.post(ajaxurl, { action: 'process_lesson', lesson_id: lessonId }, function(response) {
-            $('#execution-log').append('<pre>' + response.data + '</pre>');
-            currentIndex++;
-            processLesson();
-        });
-    }
-})(jQuery);
+                    $.post(ajaxurl, { action: 'process_lesson', lesson_id: lessonId }, function(response) {
+                        $('#execution-log').append('<pre>' + response.data + '</pre>');
+                        currentIndex++;
+                        processLesson();
+                    });
+                }
+            })(jQuery);
         </script>
         <?php
     }
-});
-
-add_action('admin_init', 'process_update_learndash_topics');
-
-function process_update_learndash_topics() {
-    if (isset($_POST['update_topics']) && !empty($_POST['course_id'])) {
-        global $wpdb;
-
-        // Get the course ID from the form input
-        $course_id = intval($_POST['course_id']);
-        $table_prefix = $wpdb->prefix;
-
-        echo "<p>Processing course ID: $course_id</p>";
-
-        // Fetch all lesson IDs for the course
-        $lessons = $wpdb->get_col($wpdb->prepare(
-            "SELECT post_id FROM {$table_prefix}postmeta 
-             WHERE meta_key = 'course_id' 
-             AND meta_value = %d", 
-            $course_id
-        ));
-
-        if (empty($lessons)) {
-            echo "<p>No lessons found for course ID: $course_id</p>";
-            return;
-        }
-
-        echo "<p>Found " . count($lessons) . " lessons for course ID: $course_id</p>";
-
-        // Fetch all topic IDs under each lesson
-        $topics = [];
-        foreach ($lessons as $lesson_id) {
-            echo "<p>Processing lesson ID: $lesson_id</p>";
-            $lesson_topics = $wpdb->get_col($wpdb->prepare(
-                "SELECT post_id FROM {$table_prefix}postmeta 
-                 WHERE meta_key = 'lesson_id' 
-                 AND meta_value = %d", 
-                $lesson_id
-            ));
-
-            if (!empty($lesson_topics)) {
-                echo "<p>Found " . count($lesson_topics) . " topics for lesson ID: $lesson_id</p>";
-                $topics = array_merge($topics, $lesson_topics);
-            } else {
-                echo "<p>No topics found for lesson ID: $lesson_id</p>";
-            }
-        }
-
-        if (empty($topics)) {
-            echo "<p>No topics found for the course ID: $course_id</p>";
-            return;
-        }
-
-        // Process each topic
-        foreach ($topics as $topic_id) {
-            $topic_content = $wpdb->get_var($wpdb->prepare(
-                "SELECT post_content FROM {$table_prefix}posts 
-                 WHERE ID = %d", 
-                $topic_id
-            ));
-
-            echo "<p>Processing topic ID: $topic_id</p>";
-            echo "<p>Previous content: <pre>" . esc_html($topic_content) . "</pre></p>";
-
-            // Extract the [ld_quiz quiz_id="..."] shortcode
-            if (preg_match('/\[ld_quiz quiz_id="[^"]+"\]/', $topic_content, $matches)) {
-                $shortcode = $matches[0];
-
-                // Update the topic content to contain only the shortcode
-                $result = $wpdb->update(
-                    "{$table_prefix}posts",
-                    ['post_content' => $shortcode],
-                    ['ID' => $topic_id],
-                    ['%s'],
-                    ['%d']
-                );
-
-                if ($result !== false) {
-                    echo "<p>Updated content: <pre>" . esc_html($shortcode) . "</pre></p>";
-                } else {
-                    echo "<p>Failed to update content for topic ID: $topic_id</p>";
-                }
-            } else {
-                echo "<p>No quiz shortcode found in topic ID: $topic_id</p>";
-            }
-        }
-
-        echo "<p>Script completed successfully.</p>";
-    }
 }
 
-// Fetch lessons for the course
-add_action('wp_ajax_fetch_lessons', function() {
-    global $wpdb;
+/**
+ * Fetch lessons for the given course ID.
+ */
+function fetch_lessons() {
+    if (!defined('DOING_AJAX') || !DOING_AJAX) {
+        exit; // Exit if not an AJAX request
+    }
 
+    global $wpdb;
     $course_id = intval($_POST['course_id']);
+
     $lessons = $wpdb->get_col($wpdb->prepare(
         "SELECT DISTINCT p.ID FROM {$wpdb->prefix}posts p
          INNER JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id
@@ -215,15 +152,20 @@ add_action('wp_ajax_fetch_lessons', function() {
     ));
 
     wp_send_json_success($lessons);
-});
+}
 
-// Process a single lesson and its topics
-add_action('wp_ajax_process_lesson', function() {
+/**
+ * Process topics for a given lesson ID.
+ */
+function process_lesson() {
+    if (!defined('DOING_AJAX') || !DOING_AJAX) {
+        exit; // Exit if not an AJAX request
+    }
+
     global $wpdb;
-
     $lesson_id = intval($_POST['lesson_id']);
 
-    // Validate that the post is actually a lesson
+    // Validate the post type
     $is_lesson = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->prefix}posts 
          WHERE ID = %d AND post_type = 'sfwd-lessons'", 
@@ -235,7 +177,6 @@ add_action('wp_ajax_process_lesson', function() {
         return;
     }
 
-    // Proceed with processing the lesson
     $logs = [];
     $logs[] = "Processing lesson ID: $lesson_id";
 
@@ -252,8 +193,6 @@ add_action('wp_ajax_process_lesson', function() {
         return;
     }
 
-    $logs[] = "Found " . count($topics) . " topics for lesson ID: $lesson_id";
-
     foreach ($topics as $topic_id) {
         $topic_content = $wpdb->get_var($wpdb->prepare(
             "SELECT post_content FROM {$wpdb->prefix}posts 
@@ -261,7 +200,6 @@ add_action('wp_ajax_process_lesson', function() {
             $topic_id
         ));
 
-        $logs[] = "Processing topic ID: $topic_id";
         if (preg_match('/\[ld_quiz quiz_id="[^"]+"\]/', $topic_content, $matches)) {
             $shortcode = $matches[0];
             $wpdb->update(
@@ -278,6 +216,4 @@ add_action('wp_ajax_process_lesson', function() {
     }
 
     wp_send_json_success(implode("\n", $logs));
-});
-
-
+}
