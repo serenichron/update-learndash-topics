@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.4] - 2024-11-28
+### Bugfix
+- Fixed issue with topics not looping and updating.
+
 ## [1.1.3] - 2024-11-28
 ### Security
 - Namespaced all plugin functions and hooks.

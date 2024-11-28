@@ -163,9 +163,11 @@ function process_lesson() {
     }
 
     global $wpdb;
-    $lesson_id = intval($_POST['lesson_id']);
 
-    // Validate the post type
+    $lesson_id = intval($_POST['lesson_id']);
+    $logs = [];
+
+    // Validate that the post is a lesson
     $is_lesson = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->prefix}posts 
          WHERE ID = %d AND post_type = 'sfwd-lessons'", 
@@ -173,13 +175,14 @@ function process_lesson() {
     ));
 
     if (!$is_lesson) {
-        wp_send_json_success("Skipped post ID $lesson_id: Not a lesson.");
+        $logs[] = "Skipped post ID $lesson_id: Not a lesson.";
+        wp_send_json_success(implode("\n", $logs));
         return;
     }
 
-    $logs = [];
     $logs[] = "Processing lesson ID: $lesson_id";
 
+    // Fetch topics for the lesson
     $topics = $wpdb->get_col($wpdb->prepare(
         "SELECT post_id FROM {$wpdb->prefix}postmeta 
          WHERE meta_key = 'lesson_id' 
@@ -188,11 +191,14 @@ function process_lesson() {
     ));
 
     if (empty($topics)) {
-        $logs[] = "No topics found for lesson ID: $lesson_id";
+        $logs[] = "No topics found for lesson ID: $lesson_id.";
         wp_send_json_success(implode("\n", $logs));
         return;
     }
 
+    $logs[] = "Found " . count($topics) . " topics for lesson ID: $lesson_id";
+
+    // Process each topic
     foreach ($topics as $topic_id) {
         $topic_content = $wpdb->get_var($wpdb->prepare(
             "SELECT post_content FROM {$wpdb->prefix}posts 
@@ -200,18 +206,32 @@ function process_lesson() {
             $topic_id
         ));
 
+        if (!$topic_content) {
+            $logs[] = "Failed to fetch content for topic ID: $topic_id.";
+            continue;
+        }
+
+        $logs[] = "Processing topic ID: $topic_id";
+        $logs[] = "Original content: " . esc_html($topic_content);
+
+        // Extract the [ld_quiz quiz_id="..."] shortcode
         if (preg_match('/\[ld_quiz quiz_id="[^"]+"\]/', $topic_content, $matches)) {
             $shortcode = $matches[0];
-            $wpdb->update(
+            $result = $wpdb->update(
                 "{$wpdb->prefix}posts",
                 ['post_content' => $shortcode],
                 ['ID' => $topic_id],
                 ['%s'],
                 ['%d']
             );
-            $logs[] = "Updated content to: $shortcode";
+
+            if ($result !== false) {
+                $logs[] = "Updated content to: $shortcode";
+            } else {
+                $logs[] = "Failed to update content for topic ID: $topic_id.";
+            }
         } else {
-            $logs[] = "No quiz shortcode found in topic ID: $topic_id";
+            $logs[] = "No [ld_quiz] shortcode found in topic ID: $topic_id.";
         }
     }
 
