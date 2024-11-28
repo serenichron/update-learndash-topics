@@ -2,7 +2,7 @@
 /*
  Plugin Name: Update LearnDash Topics
  Description: A tool to update LearnDash topics based on a given course ID.
- Version: 1.0
+ Version: 1.1
  Author: Your Name
 */
 add_action('admin_menu', 'add_update_learndash_topics_page');
@@ -23,26 +23,75 @@ function render_update_topics_page() {
     ?>
     <div class="wrap">
         <h1>Update LearnDash Topics</h1>
-        <form method="post" action="">
+        <form id="update_topics_form" method="post">
             <p>
                 <label for="course_id">Enter Course ID:</label>
                 <input type="number" name="course_id" id="course_id" required>
                 <span title="Enter the ID of the LearnDash course for which you want to update topic content.">❓</span>
             </p>
             <p>
-                <input type="submit" name="update_topics" value="Run Script" class="button button-primary">
+                <button type="submit" class="button button-primary">Run Script</button>
             </p>
         </form>
 
-        <?php if (isset($_POST['update_topics']) && !empty($_POST['course_id'])): ?>
-            <h2>Execution Log</h2>
-            <div id="execution-log" style="padding: 10px; background: #f9f9f9; border: 1px solid #ccc; max-height: 500px; overflow-y: auto;">
-                <?php process_update_learndash_topics(); ?>
-            </div>
-        <?php endif; ?>
+        <h2>Execution Log</h2>
+        <div id="execution-log" style="padding: 10px; background: #f9f9f9; border: 1px solid #ccc; max-height: 500px; overflow-y: auto;"></div>
     </div>
     <?php
 }
+
+add_action('admin_footer', function() {
+    // Check if we are on the right admin page
+    if (isset($_GET['page']) && $_GET['page'] === 'update-learndash-topics') {
+        ?>
+        <script>
+            (function($) {
+                let lessons = [];
+                let courseId = 0;
+                let currentIndex = 0;
+
+                $('#update_topics_form').on('submit', function(e) {
+                    e.preventDefault();
+
+                    courseId = $('#course_id').val();
+                    if (!courseId) {
+                        alert('Please enter a Course ID.');
+                        return;
+                    }
+
+                    $('#execution-log').html('<p>Fetching lessons...</p>');
+
+                    $.post(ajaxurl, { action: 'fetch_lessons', course_id: courseId }, function(response) {
+                        lessons = response.data;
+                        if (lessons.length > 0) {
+                            $('#execution-log').append('<p>Found ' + lessons.length + ' lessons. Starting...</p>');
+                            processLesson();
+                        } else {
+                            $('#execution-log').append('<p>No lessons found for course ID ' + courseId + '.</p>');
+                        }
+                    });
+                });
+
+                function processLesson() {
+                    if (currentIndex >= lessons.length) {
+                        $('#execution-log').append('<p>All lessons processed successfully.</p>');
+                        return;
+                    }
+
+                    let lessonId = lessons[currentIndex];
+                    $('#execution-log').append('<p>Processing lesson ID: ' + lessonId + '...</p>');
+
+                    $.post(ajaxurl, { action: 'process_lesson', lesson_id: lessonId }, function(response) {
+                        $('#execution-log').append('<pre>' + response.data + '</pre>');
+                        currentIndex++;
+                        processLesson();
+                    });
+                }
+            })(jQuery);
+        </script>
+        <?php
+    }
+});
 
 add_action('admin_init', 'process_update_learndash_topics');
 
@@ -132,4 +181,69 @@ function process_update_learndash_topics() {
         echo "<p>Script completed successfully.</p>";
     }
 }
+
+// Fetch lessons for the course
+add_action('wp_ajax_fetch_lessons', function() {
+    global $wpdb;
+
+    $course_id = intval($_POST['course_id']);
+    error_log("Fetching lessons for course ID: $course_id");
+
+    $lessons = $wpdb->get_col($wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->prefix}postmeta 
+         WHERE meta_key = 'course_id' 
+         AND meta_value = %d", 
+        $course_id
+    ));
+
+    error_log("Lessons found: " . implode(',', $lessons));
+    wp_send_json_success($lessons);
+});
+
+// Process a single lesson and its topics
+add_action('wp_ajax_process_lesson', function() {
+    global $wpdb;
+
+    $lesson_id = intval($_POST['lesson_id']);
+    error_log("Processing lesson ID: $lesson_id");
+
+    $topics = $wpdb->get_col($wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->prefix}postmeta 
+         WHERE meta_key = 'lesson_id' 
+         AND meta_value = %d", 
+        $lesson_id
+    ));
+
+    if (empty($topics)) {
+        error_log("No topics found for lesson ID: $lesson_id");
+        wp_send_json_success("No topics found for lesson ID: $lesson_id");
+        return;
+    }
+
+    $logs = [];
+    foreach ($topics as $topic_id) {
+        $topic_content = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_content FROM {$wpdb->prefix}posts 
+             WHERE ID = %d", 
+            $topic_id
+        ));
+
+        $logs[] = "Processing topic ID: $topic_id";
+        if (preg_match('/\[ld_quiz quiz_id="[^"]+"\]/', $topic_content, $matches)) {
+            $shortcode = $matches[0];
+            $wpdb->update(
+                "{$wpdb->prefix}posts",
+                ['post_content' => $shortcode],
+                ['ID' => $topic_id],
+                ['%s'],
+                ['%d']
+            );
+            $logs[] = "Updated content to: $shortcode";
+        } else {
+            $logs[] = "No quiz shortcode found in topic ID: $topic_id";
+        }
+    }
+
+    wp_send_json_success(implode("\n", $logs));
+});
 
