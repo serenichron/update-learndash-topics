@@ -1,0 +1,104 @@
+/* TSTPrep Content Cleanup Admin Styles */
+
+.tstprep-cc-admin-wrap {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.tstprep-cc-admin-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.tstprep-cc-admin-header h1 {
+    color: #23282d;
+    font-size: 23px;
+    font-weight: 400;
+    margin: 0;
+}
+
+.tstprep-cc-form-row {
+    margin-bottom: 15px;
+}
+
+.tstprep-cc-form-row label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.tstprep-cc-form-row select,
+.tstprep-cc-form-row .select2-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.tstprep-cc-submit-row {
+    margin-top: 20px;
+}
+
+#tstprep-cc-submit {
+    background: #0085ba;
+    border-color: #0073aa #006799 #006799;
+    box-shadow: 0 1px 0 #006799;
+    color: #fff;
+    text-decoration: none;
+    text-shadow: 0 -1px 1px #006799, 1px 0 1px #006799, 0 1px 1px #006799, -1px 0 1px #006799;
+    padding: 0 10px 1px;
+    font-size: 13px;
+    line-height: 26px;
+    height: 28px;
+    cursor: pointer;
+}
+
+#tstprep-cc-submit:hover,
+#tstprep-cc-submit:focus {
+    background: #008ec2;
+    border-color: #006799;
+    color: #fff;
+}
+
+#tstprep-cc-submit:focus {
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #0085ba;
+}
+
+#tstprep-cc-submit:active {
+    background: #0073aa;
+    border-color: #006799;
+    box-shadow: inset 0 2px 0 #006799;
+    vertical-align: top;
+}
+
+#tstprep-cc-results {
+    margin-top: 20px;
+    padding: 10px;
+    background: #f7f7f7;
+    border: 1px solid #e5e5e5;
+}
+
+#tstprep-cc-results ul {
+    margin-left: 20px;
+    list-style-type: disc;
+}
+
+/* Select2 Custom Styles */
+.select2-container--default .select2-selection--single {
+    border-color: #ddd;
+    height: 30px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 30px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 28px;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #0085ba;
+}
