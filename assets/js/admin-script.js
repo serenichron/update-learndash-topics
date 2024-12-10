@@ -7,85 +7,39 @@
         var $submitButton = $('#tstprep-cc-submit');
         var $resultsArea = $('#tstprep-cc-results');
 
-        // Initialize select2 for multiple selections
-        $courseSelect.select2({
-            placeholder: 'Select courses',
-            allowClear: true
-        });
+        function initializeSelect2(element, type) {
+            element.select2({
+                placeholder: 'Search for ' + type + '...',
+                allowClear: true,
+                minimumInputLength: 3,
+                ajax: {
+                    url: ajaxurl,
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            action: 'tstprep_cc_search_' + type,
+                            search: params.term,
+                            nonce: tstprep_cc_vars.nonce
+                        };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: data.data
+                        };
+                    },
+                    cache: true
+                }
+            });
+        }
 
-        $lessonSelect.select2({
-            placeholder: 'Select lessons',
-            allowClear: true
-        });
-
-        $topicSelect.select2({
-            placeholder: 'Select topics',
-            allowClear: true
-        });
+        initializeSelect2($courseSelect, 'courses');
+        initializeSelect2($lessonSelect, 'lessons');
+        initializeSelect2($topicSelect, 'topics');
 
         $cleanupTypeSelect.select2({
             placeholder: 'Select cleanup type',
             allowClear: true
-        });
-
-        // Handle course selection change
-        $courseSelect.on('change', function() {
-            var courseIds = $(this).val();
-            if (courseIds && courseIds.length > 0) {
-                $.ajax({
-                    url: ajaxurl,
-                    method: 'POST',
-                    data: {
-                        action: 'tstprep_cc_get_lessons',
-                        course_ids: courseIds,
-                        nonce: tstprep_cc_vars.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            $lessonSelect.html('<option value="">Select lessons</option>');
-                            $.each(response.data, function(id, title) {
-                                $lessonSelect.append($('<option></option>').val(id).text(title));
-                            });
-                            $lessonSelect.trigger('change');
-                        } else {
-                            alert('Error loading lessons: ' + response.data);
-                        }
-                    },
-                    error: function() {
-                        alert('Error loading lessons. Please try again.');
-                    }
-                });
-            }
-        });
-
-        // Handle lesson selection change
-        $lessonSelect.on('change', function() {
-            var lessonIds = $(this).val();
-            if (lessonIds && lessonIds.length > 0) {
-                $.ajax({
-                    url: ajaxurl,
-                    method: 'POST',
-                    data: {
-                        action: 'tstprep_cc_get_topics',
-                        lesson_ids: lessonIds,
-                        nonce: tstprep_cc_vars.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            $topicSelect.html('<option value="">Select topics</option>');
-                            $.each(response.data, function(id, title) {
-                                $topicSelect.append($('<option></option>').val(id).text(title));
-                            });
-                            $topicSelect.trigger('change');
-                        } else {
-                            alert('Error loading topics: ' + response.data);
-                        }
-                    },
-                    error: function() {
-                        alert('Error loading topics. Please try again.');
-                    }
-                });
-            }
         });
 
         // Handle form submission

@@ -26,24 +26,19 @@ class TSTPrep_CC_Admin_Page {
                 <div class="tstprep-cc-form-row">
                     <label for="tstprep-cc-course-select">Select Courses</label>
                     <select id="tstprep-cc-course-select" name="course_ids[]" multiple>
-                        <?php
-                        $courses = $this->get_courses();
-                        foreach ($courses as $course_id => $course_title) {
-                            echo '<option value="' . esc_attr($course_id) . '">' . esc_html($course_title) . '</option>';
-                        }
-                        ?>
+                        <option value="">Search for courses...</option>
                     </select>
                 </div>
                 <div class="tstprep-cc-form-row">
                     <label for="tstprep-cc-lesson-select">Select Lessons</label>
                     <select id="tstprep-cc-lesson-select" name="lesson_ids[]" multiple>
-                        <option value="">Select lessons</option>
+                        <option value="">Search for lessons...</option>
                     </select>
                 </div>
                 <div class="tstprep-cc-form-row">
                     <label for="tstprep-cc-topic-select">Select Topics</label>
                     <select id="tstprep-cc-topic-select" name="topic_ids[]" multiple>
-                        <option value="">Select topics</option>
+                        <option value="">Search for topics...</option>
                     </select>
                 </div>
                 <div class="tstprep-cc-form-row">
