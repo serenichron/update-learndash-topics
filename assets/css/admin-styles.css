@@ -102,3 +102,51 @@
 .select2-container--default .select2-results__option--highlighted[aria-selected] {
     background-color: #0085ba;
 }
+
+.processed-items {
+    list-style-type: none;
+    padding-left: 0;
+    max-width: 100%;
+}
+
+.processed-items li {
+    margin-bottom: 10px;
+}
+
+.processed-items details {
+    margin-left: 20px;
+}
+
+.processed-items summary {
+    cursor: pointer;
+    color: #0073aa;
+}
+
+.processed-items summary:hover {
+    text-decoration: underline;
+}
+
+.content-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.content-display {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-all;
+    background-color: #f1f1f1;
+    border: 1px solid #ddd;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    max-width: 100%;
+}
+
+#tstprep-cc-results {
+    max-width: 100%;
+    overflow-x: hidden;
+}

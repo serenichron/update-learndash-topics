@@ -106,6 +106,7 @@ class TSTPrep_CC_Ajax_Handlers {
             wp_send_json_error('Please select a cleanup type');
         }
 
+
         $processed_items = array();
 
         // Process courses
@@ -118,16 +119,12 @@ class TSTPrep_CC_Ajax_Handlers {
 
         // Process additional lessons
         foreach ($lesson_ids as $lesson_id) {
-            if (!in_array("Lesson ID: $lesson_id", $processed_items)) {
-                $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
-            }
+            $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
         }
 
         // Process additional topics
         foreach ($topic_ids as $topic_id) {
-            if (!in_array("Topic ID: $topic_id", $processed_items)) {
-                $this->process_topic($topic_id, $cleanup_type, $processed_items);
-            }
+            $this->process_topic($topic_id, $cleanup_type, $processed_items);
         }
 
         if (empty($processed_items)) {
@@ -136,7 +133,7 @@ class TSTPrep_CC_Ajax_Handlers {
 
         wp_send_json_success(array('processed_items' => $processed_items));
     }
-
+    
     private function process_lesson($lesson_id, $cleanup_type, &$processed_items) {
         $lesson_content = TSTPrep_CC_Lesson_Topic_Handler::get_content($lesson_id);
         $processed_content = TSTPrep_CC_Content_Processor::process_content($lesson_content, $cleanup_type);
@@ -149,10 +146,28 @@ class TSTPrep_CC_Ajax_Handlers {
         }
     }
 
+
+
     private function process_topic($topic_id, $cleanup_type, &$processed_items) {
-        $topic_content = TSTPrep_CC_Lesson_Topic_Handler::get_content($topic_id);
-        $processed_content = TSTPrep_CC_Content_Processor::process_content($topic_content, $cleanup_type);
-        TSTPrep_CC_Lesson_Topic_Handler::update_content($topic_id, $processed_content);
-        $processed_items[] = "Topic ID: $topic_id";
+        $topic_content_before = get_post_field('post_content', $topic_id);
+        $processed_content = TSTPrep_CC_Content_Processor::process_content($topic_content_before, $cleanup_type);
+        
+        // Update the post content
+        $update_result = wp_update_post(array(
+            'ID' => $topic_id,
+            'post_content' => $processed_content
+        ), true);
+
+        if (is_wp_error($update_result)) {
+            $processed_items[] = "Error updating Topic ID: $topic_id - " . $update_result->get_error_message();
+        } else {
+            $topic_content_after = get_post_field('post_content', $topic_id);
+            $processed_items[] = array(
+                'id' => $topic_id,
+                'type' => 'Topic',
+                'before' => $topic_content_before,
+                'after' => $topic_content_after
+            );
+        }
     }
 }

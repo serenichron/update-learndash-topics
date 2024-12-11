@@ -76,13 +76,22 @@
                     cleanup_type: cleanupType,
                     nonce: tstprep_cc_vars.nonce
                 },
+
                 success: function(response) {
                     if (response.success) {
                         $resultsArea.html('<p>Cleanup completed successfully!</p>');
                         if (response.data.processed_items) {
-                            $resultsArea.append('<ul>');
+                            $resultsArea.append('<ul class="processed-items">');
                             $.each(response.data.processed_items, function(index, item) {
-                                $resultsArea.append('<li>' + item + '</li>');
+                                if (typeof item === 'string') {
+                                    $resultsArea.append('<li>' + item + '</li>');
+                                } else {
+                                    $resultsArea.append('<li>' + item.type + ' ID: ' + item.id + '</li>');
+                                    $resultsArea.append('<details><summary>View changes</summary>');
+                                    $resultsArea.append('<h4>Before:</h4><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
+                                    $resultsArea.append('<h4>After:</h4><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
+                                    $resultsArea.append('</details>');
+                                }
                             });
                             $resultsArea.append('</ul>');
                         }
@@ -99,3 +108,12 @@
         });
     });
 })(jQuery);
+
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
