@@ -30,27 +30,40 @@ class TSTPrep_CC_Content_Processor {
     
         // Convert Divi sections
         $content = preg_replace_callback('/\[et_pb_section([^\]]*)\](.*?)\[\/et_pb_section\]/s', function($matches) {
+            static $section_count = 0;
+            $section_count++;
             $attrs = self::parse_attributes($matches[1]);
-            $classes = ['et_pb_section', 'et_pb_section_0', 'et_section_regular'];
-            if (isset($attrs['fb_built'])) $classes[] = 'et_had_animation';
+            $classes = ['et_pb_section', "et_pb_section_{$section_count}", 'et_section_regular'];
+            if (!isset($attrs['fullwidth']) || $attrs['fullwidth'] !== 'on') {
+                $classes[] = 'et_section_transparent';
+            }
             $attr_string = self::build_attributes($attrs, $classes);
             return "<div {$attr_string}>{$matches[2]}</div>";
         }, $content);
     
         // Convert Divi rows
         $content = preg_replace_callback('/\[et_pb_row([^\]]*)\](.*?)\[\/et_pb_row\]/s', function($matches) {
+            static $row_count = 0;
+            $row_count++;
             $attrs = self::parse_attributes($matches[1]);
-            $classes = ['et_pb_row', 'et_pb_row_0'];
-            if (isset($attrs['column_structure'])) $classes[] = 'et_pb_row_' . str_replace(',', '_', $attrs['column_structure']);
+            $classes = ['et_pb_row', "et_pb_row_{$row_count}"];
+            if (isset($attrs['column_structure'])) {
+                $classes[] = 'et_pb_row_' . str_replace(',', '_', $attrs['column_structure']);
+            }
             $attr_string = self::build_attributes($attrs, $classes);
             return "<div {$attr_string}>{$matches[2]}</div>";
         }, $content);
     
         // Convert Divi columns
         $content = preg_replace_callback('/\[et_pb_column([^\]]*)\](.*?)\[\/et_pb_column\]/s', function($matches) {
+            static $column_count = 0;
+            $column_count++;
             $attrs = self::parse_attributes($matches[1]);
-            $classes = ['et_pb_column'];
-            if (isset($attrs['type'])) $classes[] = 'et_pb_column_' . $attrs['type'];
+            $classes = ['et_pb_column', "et_pb_column_{$attrs['type']}", "et_pb_column_{$column_count}"];
+            $classes[] = 'et_pb_css_mix_blend_mode_passthrough';
+            if ($column_count % 2 == 0) {
+                $classes[] = 'et-last-child';
+            }
             $attr_string = self::build_attributes($attrs, $classes);
             return "<div {$attr_string}>{$matches[2]}</div>";
         }, $content);
@@ -58,12 +71,20 @@ class TSTPrep_CC_Content_Processor {
         // Convert Divi modules (text, code, sidebar)
         $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar'];
         foreach ($module_types as $type) {
-            $content = preg_replace_callback('/\['.$type.'([^\]]*)\](.*?)\[\/'.$type.'\]/s', function($matches) use ($type) {
+            static $module_counts = [];
+            if (!isset($module_counts[$type])) {
+                $module_counts[$type] = 0;
+            }
+            $content = preg_replace_callback('/\['.$type.'([^\]]*)\](.*?)\[\/'.$type.'\]/s', function($matches) use ($type, &$module_counts) {
+                $module_counts[$type]++;
                 $attrs = self::parse_attributes($matches[1]);
-                $classes = ['et_pb_module', $type];
+                $classes = ['et_pb_module', $type, "{$type}_{$module_counts[$type]}", 'et_pb_text_align_left', 'et_pb_bg_layout_light'];
                 $attr_string = self::build_attributes($attrs, $classes);
-                $inner_class = $type . '_inner';
-                return "<div {$attr_string}><div class='{$inner_class}'>{$matches[2]}</div></div>";
+                $inner_content = $matches[2];
+                if ($type === 'et_pb_sidebar') {
+                    return "<div {$attr_string}></div>";
+                }
+                return "<div {$attr_string}><div class='{$type}_inner'>{$inner_content}</div></div>";
             }, $content);
         }
     
@@ -90,11 +111,10 @@ class TSTPrep_CC_Content_Processor {
             $classes = array_merge($classes, explode(' ', $attrs['module_class']));
             unset($attrs['module_class']);
         }
-        $classes[] = 'et_pb_text_align_left';
-        $classes[] = 'et_pb_bg_layout_light';
         $attr_string = 'class="' . implode(' ', array_unique($classes)) . '"';
+        $allowed_attrs = ['custom_margin', 'custom_padding', 'custom_css_main_element'];
         foreach ($attrs as $key => $value) {
-            if ($key !== 'type' && $key !== 'column_structure') {
+            if (in_array($key, $allowed_attrs)) {
                 $attr_string .= " {$key}=\"{$value}\"";
             }
         }
