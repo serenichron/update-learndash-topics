@@ -89,7 +89,7 @@ class TSTPrep_CC_Content_Processor {
         }
     
         // Handle video wrapper
-        $content = preg_replace('/<iframe([^>]*)><\/iframe>/', '<div class="fluid-width-video-wrapper" style="padding-top: 56.25%;"><iframe$1></iframe></div>', $content);
+        $content = preg_replace('/<iframe([^>]*)><\/iframe>/', '<div class="fluid-width-video-wrapper"><iframe$1></iframe></div>', $content);
     
         // Clean up any empty paragraphs
         $content = preg_replace('/<p>\s*<\/p>/', '', $content);
