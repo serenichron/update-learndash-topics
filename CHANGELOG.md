@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.12-alpha] - 2023-12-14
+### Added
+- Restored before/after content comparison for processed lessons and topics
+- Enhanced logging to include detailed information about each processed item
+
+### Changed
+- Improved display of processing results in the admin interface
+- Updated error and info message handling in the cleanup process
+
+### Fixed
+- Resolved issue where before/after content comparison was not visible in the results
+
 ## [2.0.11-alpha] - 2023-12-14
 ### Added
 - Implemented log download feature after cleanup process
