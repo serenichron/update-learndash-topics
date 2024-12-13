@@ -112,14 +112,20 @@ class TSTPrep_CC_Ajax_Handlers {
         // Process courses
         foreach ($course_ids as $course_id) {
             $course_lesson_ids = learndash_course_get_steps_by_type($course_id, 'sfwd-lessons');
-            foreach ($course_lesson_ids as $lesson_id) {
-                $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
+            if (is_array($course_lesson_ids) && !empty($course_lesson_ids)) {
+                foreach ($course_lesson_ids as $lesson_id) {
+                    $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
+                }
+            } else {
+                $processed_items[] = "No lessons found for Course ID: $course_id";
             }
         }
 
         // Process additional lessons
         foreach ($lesson_ids as $lesson_id) {
-            $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
+            if (!in_array("Lesson ID: $lesson_id", $processed_items)) {
+                $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
+            }
         }
 
         // Process additional topics
@@ -135,18 +141,23 @@ class TSTPrep_CC_Ajax_Handlers {
     }
     
     private function process_lesson($lesson_id, $cleanup_type, &$processed_items) {
-        $lesson_content = TSTPrep_CC_Lesson_Topic_Handler::get_content($lesson_id);
+        $lesson_content = get_post_field('post_content', $lesson_id);
         $processed_content = TSTPrep_CC_Content_Processor::process_content($lesson_content, $cleanup_type);
-        TSTPrep_CC_Lesson_Topic_Handler::update_content($lesson_id, $processed_content);
+        wp_update_post(array(
+            'ID' => $lesson_id,
+            'post_content' => $processed_content
+        ));
         $processed_items[] = "Lesson ID: $lesson_id";
-
-        $topics = TSTPrep_CC_Lesson_Topic_Handler::get_associated_topics($lesson_id);
-        foreach ($topics as $topic_id => $topic_title) {
-            $this->process_topic($topic_id, $cleanup_type, $processed_items);
+    
+        $topics = learndash_get_topic_list($lesson_id);
+        if (is_array($topics) && !empty($topics)) {
+            foreach ($topics as $topic) {
+                $this->process_topic($topic->ID, $cleanup_type, $processed_items);
+            }
+        } else {
+            $processed_items[] = "No topics found for Lesson ID: $lesson_id";
         }
     }
-
-
 
     private function process_topic($topic_id, $cleanup_type, &$processed_items) {
         $topic_content_before = get_post_field('post_content', $topic_id);
