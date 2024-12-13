@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.11-alpha] - 2023-12-14
+### Added
+- Implemented log download feature after cleanup process
+- Added new wrapper div with classes "et-db et_divi_builder" around cleaned content
+
+### Changed
+- Improved content processing to ensure wrappers are correctly placed around the content
+- Enhanced error handling and timeout management for large course processing
+
+### Fixed
+- Resolved issue with potential over-processing of content
+- Corrected placement of Divi wrappers in cleaned content
+
+### Security
+- Implemented nonce checking for log download feature
+
+## [2.0.10-alpha] - 2023-12-13
+### Added
+- Implemented chunked processing for large courses to prevent timeouts
+- Added more detailed progress reporting during cleanup process
+
+### Changed
+- Improved error handling and reporting in lesson and topic processing
+- Updated AJAX handling to support continued processing for large datasets
+
+### Fixed
+- Resolved issue where cleanup process would appear stuck on large courses
 
 ## [2.0.9-alpha] - 2023-12-13
 ### Fixed

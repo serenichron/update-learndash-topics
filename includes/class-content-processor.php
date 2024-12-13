@@ -5,12 +5,17 @@ class TSTPrep_CC_Content_Processor {
             case 'shortcode':
                 return self::shortcode_cleanup($content);
             case 'divi_to_html':
-                return self::divi_to_html_cleanup($content);
+                $cleaned_content = self::divi_to_html_cleanup($content);
+                // Ensure the wrappers are only added if they don't already exist
+                if (strpos($cleaned_content, 'class="et-db et_divi_builder"') === false) {
+                    $cleaned_content = '<div class="et-db et_divi_builder"><div id="et-boc" class="et-boc">' . $cleaned_content . '</div></div>';
+                }
+                return $cleaned_content;
             default:
                 return $content;
         }
     }
-
+    
     private static function shortcode_cleanup($content) {
         // Preserve the existing shortcode cleanup logic
         $pattern = '/\[([^\]]*)\]/';
@@ -19,14 +24,14 @@ class TSTPrep_CC_Content_Processor {
     }
 
     private static function divi_to_html_cleanup($content) {
-        // Preserve outer structure
-        $content = '<div id="et-boc" class="et-boc">
+        // Preserve outer structure with the new wrapper
+        $content = '<div class="et-db et_divi_builder"><div id="et-boc" class="et-boc">
             <div id="et_builder_outer_content" class="et_builder_outer_content">
                 <div class="et-l et-l--post">
                     <div class="et_builder_inner_content et_pb_gutters3">' . $content . '</div>
                 </div>
             </div>
-        </div>';
+        </div></div>';
     
         // Convert Divi sections
         $content = preg_replace_callback('/\[et_pb_section([^\]]*)\](.*?)\[\/et_pb_section\]/s', function($matches) {
@@ -89,7 +94,7 @@ class TSTPrep_CC_Content_Processor {
         }
     
         // Handle video wrapper
-        $content = preg_replace('/<iframe([^>]*)><\/iframe>/', '<div class="fluid-width-video-wrapper" style="padding-top: 56.25%;"><iframe$1></iframe></div>', $content);
+        $content = preg_replace('/<iframe([^>]*)><\/iframe>/', '<div class="fluid-width-video-wrapper"><iframe$1></iframe></div>', $content);
     
         // Clean up any empty paragraphs
         $content = preg_replace('/<p>\s*<\/p>/', '', $content);

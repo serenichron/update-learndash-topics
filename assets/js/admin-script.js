@@ -106,6 +106,11 @@
                 }
             });
         });
+        $(document).on('click', '.download-log', function(e) {
+            e.preventDefault();
+            var logId = $(this).data('log-id');
+            window.location.href = ajaxurl + '?action=tstprep_cc_download_log&log_id=' + logId + '&nonce=' + tstprep_cc_vars.nonce;
+        });        
     });
 })(jQuery);
 
@@ -117,3 +122,74 @@ function escapeHtml(unsafe) {
          .replace(/"/g, "&quot;")
          .replace(/'/g, "&#039;");
 }
+
+function processCleanup(courseIds, lessonIds, topicIds, cleanupType, offset = 0) {
+    $submitButton.prop('disabled', true);
+    $resultsArea.html('<p>Processing... Please do not close this page.</p>');
+
+    $.ajax({
+        url: ajaxurl,
+        method: 'POST',
+        data: {
+            action: 'tstprep_cc_process_cleanup',
+            course_ids: courseIds,
+            lesson_ids: lessonIds,
+            topic_ids: topicIds,
+            cleanup_type: cleanupType,
+            offset: offset,
+            nonce: tstprep_cc_vars.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                $resultsArea.append('<ul>');
+                $.each(response.data.processed_items, function(index, item) {
+                    $resultsArea.append('<li>' + item + '</li>');
+                });
+                $resultsArea.append('</ul>');
+
+                if (response.data.continue) {
+                    // Continue processing
+                    processCleanup(courseIds, lessonIds, topicIds, cleanupType, response.data.offset);
+                } else {
+                    $resultsArea.append('<p>Cleanup completed successfully!</p>');
+                    $submitButton.prop('disabled', false);
+                }
+                if (!response.data.continue) {
+                    $resultsArea.append('<p>Cleanup completed successfully!</p>');
+                    $resultsArea.append('<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>');
+                    $submitButton.prop('disabled', false);
+                }
+            } else {
+                $resultsArea.html('<p>Error: ' + response.data + '</p>');
+                $submitButton.prop('disabled', false);
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            $resultsArea.html('<p>An error occurred: ' + textStatus + ' - ' + errorThrown + '</p>');
+            $submitButton.prop('disabled', false);
+        }
+    });
+}
+
+// Update the submit button click handler
+$submitButton.on('click', function(e) {
+    e.preventDefault();
+    var courseIds = $courseSelect.val();
+    var lessonIds = $lessonSelect.val();
+    var topicIds = $topicSelect.val();
+    var cleanupType = $cleanupTypeSelect.val();
+
+    if ((!courseIds || courseIds.length === 0) && 
+        (!lessonIds || lessonIds.length === 0) && 
+        (!topicIds || topicIds.length === 0)) {
+        alert('Please select at least one course, lesson, or topic.');
+        return;
+    }
+
+    if (!cleanupType) {
+        alert('Please select a cleanup type.');
+        return;
+    }
+
+    processCleanup(courseIds, lessonIds, topicIds, cleanupType);
+});
