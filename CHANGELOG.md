@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.13-alpha] - 2023-12-14
+## [2.0.13-alpha] - 2025-01-09
 ### Added
 - Support for additional divi modules
 
