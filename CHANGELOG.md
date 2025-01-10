@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.13-alpha] - 2025-01-09
+### Added
+- Support for additional divi modules
+
+### Changed
+- Updated parsing logic to better account for nested elements
+- Updated logic to include elements that are defined as divi shortcode parameters
+
+### Fixed
+- Resolved issue where numbered elements count was starting at 1 instead of 0
+
 ## [2.0.12-alpha] - 2023-12-14
 ### Added
 - Restored before/after content comparison for processed lessons and topics

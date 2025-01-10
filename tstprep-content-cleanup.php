@@ -2,13 +2,13 @@
 /**
  * Plugin Name: TSTPrep Content Cleanup
  * Description: Cleans up content for lessons and topics based on selected cleanup type.
- * Version: 2.0.12-alpha
+ * Version: 2.0.13-alpha
  * Author: Vlad Tudorie
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TSTPREP_CC_VERSION', '2.0.12-alpha');
+define('TSTPREP_CC_VERSION', '2.0.13-alpha');
 define('TSTPREP_CC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TSTPREP_CC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
