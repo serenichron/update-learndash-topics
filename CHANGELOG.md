@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.14-alpha] - 2025-01-13
+### Added
+- Support for additional divi modules
+
+### Changed
+- Updated logic to include image and raw html elements
+
+### Fixed
+- Resolved issue where additional paragraphs and line breaks were added
+
 ## [2.0.13-alpha] - 2025-01-09
 ### Added
 - Support for additional divi modules
