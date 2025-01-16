@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.15-alpha] - 2025-01-16
+### Added
+- n/a
+
+### Changed
+- Updated logic for generating toggles with correct structure
+- Updated logic for generating rows with correct structure
+- Updated logic for generating columns with correct structure
+
+### Fixed
+- Resolved issue where the element id was not transfered to the generated html
+
 ## [2.0.14-alpha] - 2025-01-13
 ### Added
 - Support for additional divi modules
