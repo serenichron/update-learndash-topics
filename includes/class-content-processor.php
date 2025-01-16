@@ -33,6 +33,36 @@ class TSTPrep_CC_Content_Processor {
         return $content;
     }
 
+    // Process [et_pb_column]
+    private static function process_divi_columns($content, $columns_in_current_row) {
+        $processed_columns = 0; // Number of processed columns within the current row
+    
+        return preg_replace_callback('/\[et_pb_column([^\]]*)\](.*?)\[\/et_pb_column\]/s', function ($matches) use (&$processed_columns, $columns_in_current_row) {
+            static $column_count = 0; // Global column counter
+    
+            $attrs = self::parse_attributes($matches[1]);
+    
+            // Base classes for the column
+            $classes = ['et_pb_column', "et_pb_column_{$attrs['type']}", "et_pb_column_{$column_count}"];
+            $classes[] = 'et_pb_css_mix_blend_mode_passthrough';
+    
+            // Check if this is the last column in the current row
+            if ($processed_columns + 1 === $columns_in_current_row) {
+                $classes[] = 'et-last-child';
+            }
+    
+            // Build attributes and process inner content
+            $attr_string = self::build_attributes($attrs, $classes);
+            $inner_content = self::process_divi_shortcodes($matches[2]);
+    
+            // Increment column counters
+            $processed_columns++;
+            $column_count++;
+    
+            return "<div {$attr_string}>{$inner_content}</div>";
+        }, $content);
+    }
+
     private static function process_divi_shortcodes($content) {
         // Process [et_pb_section]
         $content = preg_replace_callback('/\[et_pb_section([^\]]*)\](.*?)\[\/et_pb_section\]/s', function ($matches) {
@@ -51,37 +81,43 @@ class TSTPrep_CC_Content_Processor {
 
         // Process [et_pb_row]
         $content = preg_replace_callback('/\[et_pb_row([^\]]*)\](.*?)\[\/et_pb_row\]/s', function ($matches) {
-            static $row_count = 0;
+            static $row_count = 0; // Global counter for rows
+
             $attrs = self::parse_attributes($matches[1]);
+
+            // Base classes for the row
             $classes = ['et_pb_row', "et_pb_row_{$row_count}"];
+
+            // Add module_class if provided
             if (isset($attrs['module_class'])) {
                 $classes[] = $attrs['module_class'];
             }
-            if (isset($attrs['column_structure'])) {
-                $classes[] = 'et_pb_row_' . str_replace(',', '_', $attrs['column_structure']);
-            }
-            $attr_string = self::build_attributes($attrs, $classes);
-            $inner_content = self::process_divi_shortcodes($matches[2]); // Recursive call
-            $output = "<div {$attr_string}>{$inner_content}</div>";
-            $row_count++;
-            return $output;
-        }, $content);
 
-        // Process [et_pb_column]
-        $content = preg_replace_callback('/\[et_pb_column([^\]]*)\](.*?)\[\/et_pb_column\]/s', function ($matches) {
-            static $column_count = 0;
-            $attrs = self::parse_attributes($matches[1]);
-            $classes = ['et_pb_column', "et_pb_column_{$attrs['type']}", "et_pb_column_{$column_count}"];
-            $classes[] = 'et_pb_css_mix_blend_mode_passthrough';
-            if ($column_count % 2 == 0) {
-                $classes[] = 'et-last-child';
+            // Parse column_structure to determine the number of columns
+            $columns_in_current_row = 0; // Default to 0
+            if (isset($attrs['column_structure'])) {
+                $columns_in_current_row = count(explode(',', $attrs['column_structure']));
             }
+
+            // Check for custom gutter usage
+            if (isset($attrs['use_custom_gutter']) && $attrs['use_custom_gutter'] === 'on') {
+                if (isset($attrs['gutter_width']) && is_numeric($attrs['gutter_width'])) {
+                    $classes[] = "et_pb_gutters{$attrs['gutter_width']}";
+                }
+            }
+
+            // Build the attribute string for the row
             $attr_string = self::build_attributes($attrs, $classes);
-            $inner_content = self::process_divi_shortcodes($matches[2]); // Recursive call
-            $output = "<div {$attr_string}>{$inner_content}</div>";
-            $column_count++;
-            return $output;
-        }, $content);
+
+            // Process inner content and pass the column count to process_divi_columns
+            $inner_content = self::process_divi_columns($matches[2], $columns_in_current_row);
+
+            // Increment the row count
+            $row_count++;
+
+            // Return the processed row with the correct classes
+            return "<div {$attr_string}>{$inner_content}</div>";
+        }, $content);  
 
         // Process Divi modules (e.g., [et_pb_text], [et_pb_toggle], [et_pb_code], etc.)
         $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image'];
@@ -115,22 +151,29 @@ class TSTPrep_CC_Content_Processor {
                 }
 
                 if ($type === 'et_pb_toggle') {
+                    // Use the $module_counts array to ensure unique IDs for each toggle
+                    if (!isset($module_counts['et_pb_toggle'])) {
+                        $module_counts['et_pb_toggle'] = 0;
+                    }
+                    
+                    $toggle_id = 'toggle_' . $module_counts['et_pb_toggle']; // Generate a unique ID for this toggle
+                
                     // Extract the title attribute (default to "Toggle Title" if not set)
                     $title = isset($attrs['title']) ? htmlspecialchars($attrs['title'], ENT_QUOTES, 'UTF-8') : 'Toggle Title';
-
+                
                     // Add additional classes specific to toggle
                     $classes[] = 'et_pb_toggle_item';
                     $classes[] = 'et_pb_toggle_close'; // Default state is closed
-
+                
                     // Build the HTML structure for the toggle
                     $output = '<div ' . self::build_attributes($attrs, $classes) . '>'
-                            . "<h5 class='et_pb_toggle_title'>{$title}</h5>"
-                            . "<div class='et_pb_toggle_content clearfix'>{$inner_content}</div>"
+                            . "<div class='et_pb_toggle_title' data-bs-target='#{$toggle_id}' style='cursor: pointer;'>{$title}</div>"
+                            . "<div id='{$toggle_id}' class='et_pb_toggle_content clearfix' style='display: none;'>{$inner_content}</div>"
                             . '</div>';
-
-                    $module_counts[$type]++;
+                
+                    $module_counts['et_pb_toggle']++;
                     return $output;
-                }
+                }                            
 
                 if ($type === 'et_pb_code') {
                     // Extract optional attributes
@@ -202,17 +245,27 @@ class TSTPrep_CC_Content_Processor {
     }
 
     private static function build_attributes($attrs, $classes) {
+        // Handle classes
         if (isset($attrs['module_class'])) {
             $classes = array_merge($classes, explode(' ', $attrs['module_class']));
             unset($attrs['module_class']);
         }
         $attr_string = 'class="' . implode(' ', array_unique($classes)) . '"';
+    
+        // Add the "module_id" as the ID attribute if it's defined
+        if (isset($attrs['module_id'])) {
+            $attr_string .= ' id="' . htmlspecialchars($attrs['module_id'], ENT_QUOTES, 'UTF-8') . '"';
+            unset($attrs['module_id']); // Remove it to avoid duplication in other attributes
+        }
+    
+        // Add other allowed attributes
         $allowed_attrs = ['custom_margin', 'custom_padding', 'custom_css_main_element', 'hover_enabled', 'sticky_enabled'];
         foreach ($attrs as $key => $value) {
             if (in_array($key, $allowed_attrs)) {
-                $attr_string .= " {$key}=\"{$value}\"";
+                $attr_string .= " {$key}=\"" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "\"";
             }
         }
+    
         return $attr_string;
-    }
+    }    
 }
