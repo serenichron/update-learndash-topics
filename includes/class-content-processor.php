@@ -117,7 +117,51 @@ class TSTPrep_CC_Content_Processor {
 
             // Return the processed row with the correct classes
             return "<div {$attr_string}>{$inner_content}</div>";
-        }, $content);  
+        }, $content);
+
+        // Handle [et_pb_tabs]
+        $content = preg_replace_callback('/\[et_pb_tabs([^\]]*)\](.*?)\[\/et_pb_tabs\]/s', function ($matches) {
+            static $tabs_count = 0; // Global counter for tabs modules
+
+            $attrs = self::parse_attributes($matches[1]);
+            $tabs_classes = ['et_pb_module', 'et_pb_tabs', "et_pb_tabs_{$tabs_count}", 'et_slide_transition_to_1', 'et_slide_transition_to_0'];
+            $tabs_attr_string = self::build_attributes($attrs, $tabs_classes);
+
+            // Extract individual tabs
+            $tabs_inner_content = $matches[2];
+            $tabs_list_items = [];
+            $tabs_content_items = [];
+            $tab_count = 0;
+
+            preg_replace_callback('/\[et_pb_tab([^\]]*)\](.*?)\[\/et_pb_tab\]/s', function ($tab_matches) use (&$tabs_list_items, &$tabs_content_items, &$tab_count) {
+                $tab_attrs = self::parse_attributes($tab_matches[1]);
+                $tab_title = isset($tab_attrs['title']) ? htmlspecialchars($tab_attrs['title'], ENT_QUOTES, 'UTF-8') : 'Tab Title';
+                $tab_classes = ["et_pb_tab_{$tab_count}"];
+                $tab_content_classes = ['et_pb_tab', "et_pb_tab_{$tab_count}", 'clearfix'];
+
+                // Add active class to the first tab
+                if ($tab_count === 0) {
+                    $tab_classes[] = 'et_pb_tab_active';
+                    $tab_content_classes[] = 'et_pb_active_content et-pb-active-slide';
+                } else {
+                    $tab_content_classes[] = 'et-pb-moved-slide';
+                }
+
+                $tabs_list_items[] = "<li class='" . implode(' ', $tab_classes) . "'><a href='#'>{$tab_title}</a></li>";
+                $tabs_content_items[] = "<div class='" . implode(' ', $tab_content_classes) . "' style='z-index: " . ($tab_count + 1) . "; display: " . ($tab_count === 0 ? 'block' : 'none') . "; opacity: " . ($tab_count === 0 ? '1' : '0') . ";'>
+                    <div class='et_pb_tab_content'>{$tab_matches[2]}</div>
+                </div>";
+
+                $tab_count++;
+            }, $tabs_inner_content);
+
+            // Build the tabs list and content
+            $tabs_list_html = '<ul class="et_pb_tabs_controls clearfix">' . implode('', $tabs_list_items) . '</ul>';
+            $tabs_content_html = '<div class="et_pb_all_tabs">' . implode('', $tabs_content_items) . '</div>';
+
+            $tabs_count++;
+            return "<div {$tabs_attr_string}>{$tabs_list_html}{$tabs_content_html}</div>";
+        }, $content);
 
         // Process Divi modules (e.g., [et_pb_text], [et_pb_toggle], [et_pb_code], etc.)
         $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image'];
