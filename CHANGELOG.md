@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.16-alpha] - 2025-01-17
+### Added
+- Support for et_pb_tabs divi module
+
+### Changed
+- Updated logic to also process et_pb_tabs
+
+### Fixed
+- n/a
+
 ## [2.0.15-alpha] - 2025-01-16
 ### Added
 - n/a
