@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.17-alpha] - 2025-01-17
+### Added
+- Support for et_pb_team_member & et_pb_divider divi modules
+
+### Changed
+- Updated logic to also process et_pb_team_member & et_pb_divider
+
+### Fixed
+- Prevented et_pb_code from adding empty paragraphs
+
 ## [2.0.16-alpha] - 2025-01-17
 ### Added
 - Support for et_pb_tabs divi module

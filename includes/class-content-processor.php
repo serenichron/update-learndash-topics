@@ -164,7 +164,7 @@ class TSTPrep_CC_Content_Processor {
         }, $content);
 
         // Process Divi modules (e.g., [et_pb_text], [et_pb_toggle], [et_pb_code], etc.)
-        $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image'];
+        $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image', 'et_pb_team_member', 'et_pb_divider'];
 
         foreach ($module_types as $type) {
             static $module_counts = [];
@@ -182,6 +182,57 @@ class TSTPrep_CC_Content_Processor {
 
                 // Recursively process inner content
                 $inner_content = self::process_divi_shortcodes($matches[2]);
+
+                if ($type === 'et_pb_divider') {
+                    // Extract necessary attributes
+                    $color = isset($attrs['color']) ? htmlspecialchars($attrs['color'], ENT_QUOTES, 'UTF-8') : '#000000'; // Default to black
+                    $divider_weight = isset($attrs['divider_weight']) ? htmlspecialchars($attrs['divider_weight'], ENT_QUOTES, 'UTF-8') : '1px'; // Default to 1px
+                    $custom_padding = isset($attrs['custom_padding']) ? htmlspecialchars($attrs['custom_padding'], ENT_QUOTES, 'UTF-8') : '';
+                    $module_class = isset($attrs['_module_preset']) ? htmlspecialchars($attrs['_module_preset'], ENT_QUOTES, 'UTF-8') : '';
+                    $custom_css = isset($attrs['custom_css_main_element']) ? htmlspecialchars($attrs['custom_css_main_element'], ENT_QUOTES, 'UTF-8') : '';
+                
+                    // Build the inline style for the divider
+                    $style = "border-bottom: {$divider_weight} solid {$color}; {$custom_css}";
+                
+                    // Build the HTML structure
+                    $output = '<div class="et_pb_module et_pb_divider ' . "{$type}_{$module_counts[$type]} et_pb_divider_position_ et_pb_space {$module_class}\" style=\"{$custom_padding}\">"
+                            . '<div class="et_pb_divider_internal" style="' . $style . '"></div>'
+                            . '</div>';
+                
+                    $module_counts[$type]++;
+                    return $output;
+                }                
+
+                if ($type === 'et_pb_team_member') {
+                    // Extract necessary attributes
+                    $name = isset($attrs['name']) ? htmlspecialchars($attrs['name'], ENT_QUOTES, 'UTF-8') : 'Team Member';
+                    $image_url = isset($attrs['image_url']) ? htmlspecialchars($attrs['image_url'], ENT_QUOTES, 'UTF-8') : '';
+                    $text_orientation = isset($attrs['text_orientation']) ? htmlspecialchars($attrs['text_orientation'], ENT_QUOTES, 'UTF-8') : 'left';
+                    $module_class = isset($attrs['_module_preset']) ? htmlspecialchars($attrs['_module_preset'], ENT_QUOTES, 'UTF-8') : '';
+                    $custom_css = isset($attrs['custom_css_main_element']) ? htmlspecialchars($attrs['custom_css_main_element'], ENT_QUOTES, 'UTF-8') : '';
+                
+                    // Image attributes (add defaults if required)
+                    $width = '300';
+                    $height = '300';
+                    $sizes = '(max-width: 300px) 100vw, 300px';
+                    $srcset = "{$image_url} 300w, {$image_url} 1024w, {$image_url} 150w, {$image_url} 768w, {$image_url} 750w, {$image_url} 400w, {$image_url} 510w, {$image_url} 100w, {$image_url} 1080w";
+                
+                    // Build the HTML structure
+                    $output = '<div class="et_pb_module et_pb_team_member ' . "{$type}_{$module_counts[$type]} clearfix et_pb_text_align_{$text_orientation} et_pb_bg_layout_light {$module_class}\" style=\"{$custom_css}\">"
+                            . '<div class="et_pb_team_member_image et-waypoint et_pb_animation_off et-animated">'
+                            . '<picture decoding="async" class="wp-image">'
+                            . '<img decoding="async" width="' . $width . '" height="' . $height . '" src="' . $image_url . '" alt="' . $name . '" '
+                            . 'srcset="' . $srcset . '" sizes="' . $sizes . '">'
+                            . '</picture>'
+                            . '</div>'
+                            . '<div class="et_pb_team_member_description">'
+                            . '<h4 class="et_pb_module_header">' . $name . '</h4>'
+                            . '</div>'
+                            . '</div>';
+                
+                    $module_counts[$type]++;
+                    return $output;
+                }                
 
                 if ($type === 'et_pb_video') {
                     // Handle YouTube video embedding
@@ -275,6 +326,13 @@ class TSTPrep_CC_Content_Processor {
             add_filter('the_content', 'wpautop');
             add_filter('the_excerpt', 'wpautop');
         }
+
+        // Remove empty <p> tags and placeholders within the entire content
+        $content = preg_replace([
+            '/<p>\s*<\/p>/i', // Matches <p></p> with any amount of whitespace inside
+            '/<p><!--\s*\[et_pb_line_break_holder\]\s*--><\/p>/i', // Matches placeholders inside <p> tags
+            '/<!--\s*\[et_pb_line_break_holder\]\s*-->/i', // Matches standalone placeholders
+        ], '', $content);
 
         return $content;
     }
