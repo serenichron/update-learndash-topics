@@ -11,87 +11,180 @@ class TSTPrep_CC_Ajax_Handlers {
         
             public function search_courses() {
                 check_ajax_referer('tstprep_cc_nonce', 'nonce');
+            
+                // Get the search term and normalize it
                 $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-                
+                $search = html_entity_decode($search, ENT_QUOTES, 'UTF-8'); // Decode entities like `&#8211;`
+                $search = str_replace(['–', '&#8211;'], '-', $search); // Replace en dashes and entities with hyphen
+            
+                // Debugging: Log the normalized search term
+                error_log('Normalized Search Term (Courses): ' . $search);
+            
+                // Add a custom filter for the `posts_where` clause
+                add_filter('posts_where', function ($where) use ($search) {
+                    global $wpdb;
+            
+                    if (!empty($search)) {
+                        $where .= $wpdb->prepare(
+                            " AND {$wpdb->posts}.post_title LIKE %s",
+                            '%' . $wpdb->esc_like($search) . '%'
+                        );
+                    }
+            
+                    return $where;
+                });
+            
+                // WP_Query arguments
                 $args = array(
                     'post_type' => 'sfwd-courses',
                     'post_status' => 'publish',
                     'posts_per_page' => 20,
-                    's' => $search
+                    'suppress_filters' => false, // Allow our custom filter to apply
                 );
-        
+            
+                // Execute the query
                 $query = new WP_Query($args);
+            
+                // Debugging: Log the SQL query
+                error_log('SQL Query (Courses): ' . $query->request);
+            
+                // Collect results
                 $results = array();
-        
                 if ($query->have_posts()) {
                     while ($query->have_posts()) {
                         $query->the_post();
                         $results[] = array(
                             'id' => get_the_ID(),
-                            'text' => get_the_title()
+                            'text' => html_entity_decode(get_the_title(), ENT_QUOTES, 'UTF-8') // Decode the title
                         );
                     }
                 }
-        
+            
+                // Reset the query and remove the filter
                 wp_reset_postdata();
+                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+            
+                // Return results
                 wp_send_json_success($results);
-            }
+            }            
         
             public function search_lessons() {
                 check_ajax_referer('tstprep_cc_nonce', 'nonce');
+            
+                // Get the search term and normalize it
                 $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-                
+                $search = html_entity_decode($search, ENT_QUOTES, 'UTF-8'); // Decode entities like `&#8211;`
+                $search = str_replace(['–', '&#8211;'], '-', $search); // Replace en dashes and entities with hyphen
+            
+                // Debugging: Log the normalized search term
+                error_log('Normalized Search Term (Lessons): ' . $search);
+            
+                // Add a custom filter for the `posts_where` clause
+                add_filter('posts_where', function ($where) use ($search) {
+                    global $wpdb;
+            
+                    if (!empty($search)) {
+                        $where .= $wpdb->prepare(
+                            " AND {$wpdb->posts}.post_title LIKE %s",
+                            '%' . $wpdb->esc_like($search) . '%'
+                        );
+                    }
+            
+                    return $where;
+                });
+            
+                // WP_Query arguments
                 $args = array(
                     'post_type' => 'sfwd-lessons',
                     'post_status' => 'publish',
                     'posts_per_page' => 20,
-                    's' => $search
+                    'suppress_filters' => false, // Allow our custom filter to apply
                 );
-        
+            
+                // Execute the query
                 $query = new WP_Query($args);
+            
+                // Debugging: Log the SQL query
+                error_log('SQL Query (Lessons): ' . $query->request);
+            
+                // Collect results
                 $results = array();
-        
                 if ($query->have_posts()) {
                     while ($query->have_posts()) {
                         $query->the_post();
                         $results[] = array(
                             'id' => get_the_ID(),
-                            'text' => get_the_title()
+                            'text' => html_entity_decode(get_the_title(), ENT_QUOTES, 'UTF-8') // Decode the title
                         );
                     }
                 }
-        
+            
+                // Reset the query and remove the filter
                 wp_reset_postdata();
+                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+            
+                // Return results
                 wp_send_json_success($results);
-            }
+            }            
         
             public function search_topics() {
                 check_ajax_referer('tstprep_cc_nonce', 'nonce');
+            
+                // Get the search term and normalize it
                 $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-                
+                $search = html_entity_decode($search, ENT_QUOTES, 'UTF-8'); // Decode HTML entities like `&#8211;`
+                $search = str_replace(['–', '&#8211;'], '-', $search); // Replace en dashes and entities with hyphen
+            
+                // Debugging: Log the normalized search term
+                error_log('Normalized Search Term (Topics): ' . $search);
+            
+                // Add a custom filter for the `posts_where` clause
+                add_filter('posts_where', function ($where) use ($search) {
+                    global $wpdb;
+            
+                    if (!empty($search)) {
+                        $where .= $wpdb->prepare(
+                            " AND {$wpdb->posts}.post_title LIKE %s",
+                            '%' . $wpdb->esc_like($search) . '%'
+                        );
+                    }
+            
+                    return $where;
+                });
+            
+                // WP_Query arguments
                 $args = array(
                     'post_type' => 'sfwd-topic',
                     'post_status' => 'publish',
                     'posts_per_page' => 20,
-                    's' => $search
+                    'suppress_filters' => false, // Allow our custom filter to apply
                 );
-        
+            
+                // Execute the query
                 $query = new WP_Query($args);
+            
+                // Debugging: Log the SQL query
+                error_log('SQL Query (Topics): ' . $query->request);
+            
+                // Collect results
                 $results = array();
-        
                 if ($query->have_posts()) {
                     while ($query->have_posts()) {
                         $query->the_post();
                         $results[] = array(
                             'id' => get_the_ID(),
-                            'text' => get_the_title()
+                            'text' => html_entity_decode(get_the_title(), ENT_QUOTES, 'UTF-8') // Decode the title
                         );
                     }
                 }
-        
+            
+                // Reset the query and remove the filter
                 wp_reset_postdata();
+                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+            
+                // Return results
                 wp_send_json_success($results);
-            }
+            }            
 
             public function process_cleanup() {
                 check_ajax_referer('tstprep_cc_nonce', 'nonce');

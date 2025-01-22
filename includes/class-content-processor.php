@@ -46,6 +46,11 @@ class TSTPrep_CC_Content_Processor {
             $classes = ['et_pb_column', "et_pb_column_{$attrs['type']}", "et_pb_column_{$column_count}"];
             $classes[] = 'et_pb_css_mix_blend_mode_passthrough';
     
+            // Add module_class if provided
+            if (isset($attrs['module_class'])) {
+                $classes = array_merge($classes, explode(' ', $attrs['module_class']));
+            }
+    
             // Check if this is the last column in the current row
             if ($processed_columns + 1 === $columns_in_current_row) {
                 $classes[] = 'et-last-child';
@@ -61,7 +66,7 @@ class TSTPrep_CC_Content_Processor {
     
             return "<div {$attr_string}>{$inner_content}</div>";
         }, $content);
-    }
+    }    
 
     private static function process_divi_shortcodes($content) {
         // Process [et_pb_section]
@@ -182,6 +187,18 @@ class TSTPrep_CC_Content_Processor {
 
                 // Recursively process inner content
                 $inner_content = self::process_divi_shortcodes($matches[2]);
+
+                if ($type === 'et_pb_text') {
+                    // Add additional classes specific to et_pb_text
+                    $classes[] = 'et_pb_text_align_left';
+                    $classes[] = 'et_pb_bg_layout_light';
+                    $classes[] = "{$type}_{$module_counts[$type]}"; // Add unique class based on module count
+                
+                    // Handle module_class if present
+                    if (isset($attrs['module_class'])) {
+                        $classes = array_merge($classes, explode(' ', $attrs['module_class']));
+                    }
+                }                
 
                 if ($type === 'et_pb_divider') {
                     // Extract necessary attributes

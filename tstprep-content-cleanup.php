@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TSTPrep Content Cleanup
  * Description: Cleans up content for lessons and topics based on selected cleanup type.
- * Version: 2.0.17-alpha
+ * Version: 2.0.18-alpha
  * Author: Vlad Tudorie
  */
 

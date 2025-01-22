@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.18-alpha] - 2025-01-22
+### Added
+- Support for et_pb_text classes
+
+### Changed
+- Updated logic to not skip classes
+- Updated logic to correctly number et_pb_text classes
+
+### Fixed
+- Fixed search query to return results that include special characters
+
 ## [2.0.17-alpha] - 2025-01-17
 ### Added
 - Support for et_pb_team_member & et_pb_divider divi modules
