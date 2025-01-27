@@ -38,4 +38,4 @@ Contributions, issues, and feature requests are welcome! Feel free to create a p
 ---
 
 ### Author
-Developed by Vlad Tudorie (vlad@serenichron.com)
+Developed by Vlad Tudorie (vlad@serenichron.com) and Robert Niculescu (robert.niculescu@serenichron.com).
