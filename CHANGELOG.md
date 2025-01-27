@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.19-alpha] - 2025-01-27
+### Added
+- n/a
+
+### Changed
+- n/a
+
+### Fixed
+- Fixed incrementation of $module_counts variable used for class numbering
+
 ## [2.0.18-alpha] - 2025-01-22
 ### Added
 - Support for et_pb_text classes
