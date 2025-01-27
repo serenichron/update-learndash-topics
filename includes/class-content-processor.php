@@ -1,8 +1,11 @@
 <?php
 class TSTPrep_CC_Content_Processor {
+    private static $module_counts = [];
+
     public static function process_content($content, $cleanup_type) {
         switch ($cleanup_type) {
             case 'divi_to_html':
+                self::reset_module_counts(); // Reset all counters before processing
                 $cleaned_content = self::divi_to_html_cleanup($content);
                 // Ensure the wrappers are only added if they don't already exist
                 if (strpos($cleaned_content, 'class="et-db et_divi_builder"') === false) {
@@ -46,6 +49,11 @@ class TSTPrep_CC_Content_Processor {
             $classes = ['et_pb_column', "et_pb_column_{$attrs['type']}", "et_pb_column_{$column_count}"];
             $classes[] = 'et_pb_css_mix_blend_mode_passthrough';
     
+            // Add module_class if provided
+            if (isset($attrs['module_class'])) {
+                $classes = array_merge($classes, explode(' ', $attrs['module_class']));
+            }
+    
             // Check if this is the last column in the current row
             if ($processed_columns + 1 === $columns_in_current_row) {
                 $classes[] = 'et-last-child';
@@ -61,7 +69,7 @@ class TSTPrep_CC_Content_Processor {
     
             return "<div {$attr_string}>{$inner_content}</div>";
         }, $content);
-    }
+    }    
 
     private static function process_divi_shortcodes($content) {
         // Process [et_pb_section]
@@ -164,43 +172,105 @@ class TSTPrep_CC_Content_Processor {
         }, $content);
 
         // Process Divi modules (e.g., [et_pb_text], [et_pb_toggle], [et_pb_code], etc.)
-        $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image'];
+        $module_types = ['et_pb_text', 'et_pb_code', 'et_pb_sidebar', 'et_pb_toggle', 'et_pb_video', 'et_pb_image', 'et_pb_team_member', 'et_pb_divider'];
 
         foreach ($module_types as $type) {
-            static $module_counts = [];
-            if (!isset($module_counts[$type])) {
-                $module_counts[$type] = 0;
+            if (!isset(self::$module_counts[$type])) {
+                self::$module_counts[$type] = 0;
             }
-
+        
             // Remove auto-paragraphs temporarily
             remove_filter('the_content', 'wpautop');
             remove_filter('the_excerpt', 'wpautop');
-
-            $content = preg_replace_callback('/\[' . preg_quote($type, '/') . '([^\]]*)\](.*?)\[\/' . preg_quote($type, '/') . '\]/s', function ($matches) use ($type, &$module_counts) {
+        
+            $content = preg_replace_callback('/\[' . preg_quote($type, '/') . '([^\]]*)\](.*?)\[\/' . preg_quote($type, '/') . '\]/s', function ($matches) use ($type) {
                 $attrs = self::parse_attributes($matches[1]);
-                $classes = ['et_pb_module', $type, "{$type}_{$module_counts[$type]}", 'et_pb_text_align_left', 'et_pb_bg_layout_light'];
-
+                $classes = ['et_pb_module', $type, "{$type}_" . self::$module_counts[$type], 'et_pb_text_align_left', 'et_pb_bg_layout_light'];
+        
                 // Recursively process inner content
                 $inner_content = self::process_divi_shortcodes($matches[2]);
-
+        
+                if ($type === 'et_pb_text') {
+                    // Add additional classes specific to et_pb_text
+                    $classes[] = 'et_pb_text_align_left';
+                    $classes[] = 'et_pb_bg_layout_light';
+                    $classes[] = "{$type}_" . self::$module_counts[$type]; // Add unique class based on module count
+                
+                    // Handle module_class if present
+                    if (isset($attrs['module_class'])) {
+                        $classes = array_merge($classes, explode(' ', $attrs['module_class']));
+                    }
+                }
+        
+                if ($type === 'et_pb_divider') {
+                    // Extract necessary attributes
+                    $color = isset($attrs['color']) ? htmlspecialchars($attrs['color'], ENT_QUOTES, 'UTF-8') : '#000000'; // Default to black
+                    $divider_weight = isset($attrs['divider_weight']) ? htmlspecialchars($attrs['divider_weight'], ENT_QUOTES, 'UTF-8') : '1px'; // Default to 1px
+                    $custom_padding = isset($attrs['custom_padding']) ? htmlspecialchars($attrs['custom_padding'], ENT_QUOTES, 'UTF-8') : '';
+                    $module_class = isset($attrs['_module_preset']) ? htmlspecialchars($attrs['_module_preset'], ENT_QUOTES, 'UTF-8') : '';
+                    $custom_css = isset($attrs['custom_css_main_element']) ? htmlspecialchars($attrs['custom_css_main_element'], ENT_QUOTES, 'UTF-8') : '';
+                
+                    // Build the inline style for the divider
+                    $style = "border-bottom: {$divider_weight} solid {$color}; {$custom_css}";
+                
+                    // Build the HTML structure
+                    $output = '<div class="et_pb_module et_pb_divider ' . "{$type}_{self::$module_counts[$type]} et_pb_divider_position_ et_pb_space {$module_class}\" style=\"{$custom_padding}\">"
+                            . '<div class="et_pb_divider_internal" style="' . $style . '"></div>'
+                            . '</div>';
+                
+                    self::$module_counts[$type]++;
+                    return $output;
+                }                
+        
+                if ($type === 'et_pb_team_member') {
+                    // Extract necessary attributes
+                    $name = isset($attrs['name']) ? htmlspecialchars($attrs['name'], ENT_QUOTES, 'UTF-8') : 'Team Member';
+                    $image_url = isset($attrs['image_url']) ? htmlspecialchars($attrs['image_url'], ENT_QUOTES, 'UTF-8') : '';
+                    $text_orientation = isset($attrs['text_orientation']) ? htmlspecialchars($attrs['text_orientation'], ENT_QUOTES, 'UTF-8') : 'left';
+                    $module_class = isset($attrs['_module_preset']) ? htmlspecialchars($attrs['_module_preset'], ENT_QUOTES, 'UTF-8') : '';
+                    $custom_css = isset($attrs['custom_css_main_element']) ? htmlspecialchars($attrs['custom_css_main_element'], ENT_QUOTES, 'UTF-8') : '';
+                
+                    // Image attributes (add defaults if required)
+                    $width = '300';
+                    $height = '300';
+                    $sizes = '(max-width: 300px) 100vw, 300px';
+                    $srcset = "{$image_url} 300w, {$image_url} 1024w, {$image_url} 150w, {$image_url} 768w, {$image_url} 750w, {$image_url} 400w, {$image_url} 510w, {$image_url} 100w, {$image_url} 1080w";
+                
+                    // Build the HTML structure
+                    $output = '<div class="et_pb_module et_pb_team_member ' . "{$type}_{self::$module_counts[$type]} clearfix et_pb_text_align_{$text_orientation} et_pb_bg_layout_light {$module_class}\" style=\"{$custom_css}\">"
+                            . '<div class="et_pb_team_member_image et-waypoint et_pb_animation_off et-animated">'
+                            . '<picture decoding="async" class="wp-image">'
+                            . '<img decoding="async" width="' . $width . '" height="' . $height . '" src="' . $image_url . '" alt="' . $name . '" '
+                            . 'srcset="' . $srcset . '" sizes="' . $sizes . '">'
+                            . '</picture>'
+                            . '</div>'
+                            . '<div class="et_pb_team_member_description">'
+                            . '<h4 class="et_pb_module_header">' . $name . '</h4>'
+                            . '</div>'
+                            . '</div>';
+                
+                    self::$module_counts[$type]++;
+                    return $output;
+                }                
+        
                 if ($type === 'et_pb_video') {
                     // Handle YouTube video embedding
                     if (isset($attrs['src']) && preg_match('/youtu(?:\.be|be\.com)\/(?:watch\?v=|embed\/|)([^\s&?]+)/', $attrs['src'], $video_match)) {
                         $video_id = $video_match[1];
                         $iframe = "<iframe width=\"640\" height=\"360\" src=\"https://www.youtube.com/embed/{$video_id}?feature=oembed\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>";
-                        $module_counts[$type]++;
+                        self::$module_counts[$type]++;
                         return "<div style=\"text-align:center;\">{$iframe}</div>";
                     }
                     return ''; // If no valid video URL is found, return nothing
                 }
-
+        
                 if ($type === 'et_pb_toggle') {
-                    // Use the $module_counts array to ensure unique IDs for each toggle
-                    if (!isset($module_counts['et_pb_toggle'])) {
-                        $module_counts['et_pb_toggle'] = 0;
+                    // Use the self::$module_counts array to ensure unique IDs for each toggle
+                    if (!isset(self::$module_counts['et_pb_toggle'])) {
+                        self::$module_counts['et_pb_toggle'] = 0;
                     }
                     
-                    $toggle_id = 'toggle_' . $module_counts['et_pb_toggle']; // Generate a unique ID for this toggle
+                    $toggle_id = 'toggle_' . self::$module_counts['et_pb_toggle']; // Generate a unique ID for this toggle
                 
                     // Extract the title attribute (default to "Toggle Title" if not set)
                     $title = isset($attrs['title']) ? htmlspecialchars($attrs['title'], ENT_QUOTES, 'UTF-8') : 'Toggle Title';
@@ -215,10 +285,10 @@ class TSTPrep_CC_Content_Processor {
                             . "<div id='{$toggle_id}' class='et_pb_toggle_content clearfix' style='display: none;'>{$inner_content}</div>"
                             . '</div>';
                 
-                    $module_counts['et_pb_toggle']++;
+                    self::$module_counts['et_pb_toggle']++;
                     return $output;
                 }                            
-
+        
                 if ($type === 'et_pb_code') {
                     // Extract optional attributes
                     $module_class = isset($attrs['module_class']) ? htmlspecialchars($attrs['module_class'], ENT_QUOTES, 'UTF-8') : '';
@@ -228,56 +298,75 @@ class TSTPrep_CC_Content_Processor {
                     $raw_content = isset($matches[2]) ? $matches[2] : '';
                 
                     // Wrap the raw HTML content inside the custom div structure
-                    $output = '<div class="et_pb_module et_pb_code ' . "{$type}_{$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
+                    $output = '<div class="et_pb_module et_pb_code ' . "{$type}_{self::$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
                             . '<div class="et_pb_code_inner">'
                             . $raw_content // Use raw HTML content from the shortcode
                             . '</div>'
                             . '</div>';
                 
-                    $module_counts[$type]++;
+                    self::$module_counts[$type]++;
                     return $output;
                 }                
-
+        
                 if ($type === 'et_pb_image') {
                     // Extract necessary attributes for image
                     $src = isset($attrs['src']) ? htmlspecialchars($attrs['src'], ENT_QUOTES, 'UTF-8') : '';
                     $title_text = isset($attrs['title_text']) ? htmlspecialchars($attrs['title_text'], ENT_QUOTES, 'UTF-8') : '';
                     $module_class = isset($attrs['module_class']) ? htmlspecialchars($attrs['module_class'], ENT_QUOTES, 'UTF-8') : '';
                     $custom_css = isset($attrs['custom_css_main_element']) ? htmlspecialchars($attrs['custom_css_main_element'], ENT_QUOTES, 'UTF-8') : '';
-
+        
                     // Define additional image attributes
                     $width = '2040';
                     $height = '1070';
                     $sizes = '(max-width: 2040px) 100vw, 2040px';
                     $srcset = "{$src} 2040w, {$src} 300w, {$src} 1024w, {$src} 768w, {$src} 1536w, {$src} 1080w, {$src} 510w";
-
+        
                     // Construct the image HTML without unnecessary spaces or newlines
-                    $output = '<div class="et_pb_module et_pb_image ' . "{$type}_{$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
+                    $output = '<div class="et_pb_module et_pb_image ' . "{$type}_{self::$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
                             . '<span class="et_pb_image_wrap">'
                             . '<img fetchpriority="high" decoding="async" width="' . $width . '" height="' . $height . '" src="' . $src . '" alt="" '
                             . 'title="' . $title_text . '" srcset="' . $srcset . '" sizes="' . $sizes . '" class="wp-image">'
                             . '</span>'
                             . '</div>';
-
-                    $module_counts[$type]++;
+        
+                    self::$module_counts[$type]++;
                     return $output;
                 }
-
+        
                 // Generic handling for other module types
                 $attr_string = self::build_attributes($attrs, $classes);
                 $output = "<div {$attr_string}><div class='{$type}_inner'>{$inner_content}</div></div>";
-
-                $module_counts[$type]++;
+        
+                self::$module_counts[$type]++;
                 return $output;
             }, $content);
-
+        
             // Re-enable auto-paragraphs
             add_filter('the_content', 'wpautop');
             add_filter('the_excerpt', 'wpautop');
         }
 
+        // Remove empty <p> tags and placeholders within the entire content
+        $content = preg_replace([
+            '/<p>\s*<\/p>/i', // Matches <p></p> with any amount of whitespace inside
+            '/<p><!--\s*\[et_pb_line_break_holder\]\s*--><\/p>/i', // Matches placeholders inside <p> tags
+            '/<!--\s*\[et_pb_line_break_holder\]\s*-->/i', // Matches standalone placeholders
+        ], '', $content);
+
         return $content;
     }
+
+    private static function reset_module_counts($type = null) {
+        if ($type) {
+            // Reset a specific module type
+            if (isset(self::$module_counts[$type])) {
+                self::$module_counts[$type] = 0;
+            }
+        } else {
+            // Reset all module types
+            self::$module_counts = [];
+        }
+    }      
 
     private static function parse_attributes($attr_string) {
         $attrs = [];
