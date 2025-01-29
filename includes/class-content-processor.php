@@ -214,7 +214,7 @@ class TSTPrep_CC_Content_Processor {
                     $style = "border-bottom: {$divider_weight} solid {$color}; {$custom_css}";
                 
                     // Build the HTML structure
-                    $output = '<div class="et_pb_module et_pb_divider ' . "{$type}_{self::$module_counts[$type]} et_pb_divider_position_ et_pb_space {$module_class}\" style=\"{$custom_padding}\">"
+                    $output = '<div class="et_pb_module et_pb_divider ' . "{$type}_". self::$module_counts[$type] . " et_pb_divider_position_ et_pb_space {$module_class}\" style=\"{$custom_padding}\">"
                             . '<div class="et_pb_divider_internal" style="' . $style . '"></div>'
                             . '</div>';
                 
@@ -237,7 +237,7 @@ class TSTPrep_CC_Content_Processor {
                     $srcset = "{$image_url} 300w, {$image_url} 1024w, {$image_url} 150w, {$image_url} 768w, {$image_url} 750w, {$image_url} 400w, {$image_url} 510w, {$image_url} 100w, {$image_url} 1080w";
                 
                     // Build the HTML structure
-                    $output = '<div class="et_pb_module et_pb_team_member ' . "{$type}_{self::$module_counts[$type]} clearfix et_pb_text_align_{$text_orientation} et_pb_bg_layout_light {$module_class}\" style=\"{$custom_css}\">"
+                    $output = '<div class="et_pb_module et_pb_team_member ' . "{$type}_". self::$module_counts[$type] . " clearfix et_pb_text_align_{$text_orientation} et_pb_bg_layout_light {$module_class}\" style=\"{$custom_css}\">"
                             . '<div class="et_pb_team_member_image et-waypoint et_pb_animation_off et-animated">'
                             . '<picture decoding="async" class="wp-image">'
                             . '<img decoding="async" width="' . $width . '" height="' . $height . '" src="' . $image_url . '" alt="' . $name . '" '
@@ -298,7 +298,7 @@ class TSTPrep_CC_Content_Processor {
                     $raw_content = isset($matches[2]) ? $matches[2] : '';
                 
                     // Wrap the raw HTML content inside the custom div structure
-                    $output = '<div class="et_pb_module et_pb_code ' . "{$type}_{self::$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
+                    $output = '<div class="et_pb_module et_pb_code ' . "{$type}_". self::$module_counts[$type] . " {$module_class}\" style=\"{$custom_css}\">"
                             . '<div class="et_pb_code_inner">'
                             . $raw_content // Use raw HTML content from the shortcode
                             . '</div>'
@@ -322,7 +322,7 @@ class TSTPrep_CC_Content_Processor {
                     $srcset = "{$src} 2040w, {$src} 300w, {$src} 1024w, {$src} 768w, {$src} 1536w, {$src} 1080w, {$src} 510w";
         
                     // Construct the image HTML without unnecessary spaces or newlines
-                    $output = '<div class="et_pb_module et_pb_image ' . "{$type}_{self::$module_counts[$type]} {$module_class}\" style=\"{$custom_css}\">"
+                    $output = '<div class="et_pb_module et_pb_image ' . "{$type}_". self::$module_counts[$type] . " {$module_class}\" style=\"{$custom_css}\">"
                             . '<span class="et_pb_image_wrap">'
                             . '<img fetchpriority="high" decoding="async" width="' . $width . '" height="' . $height . '" src="' . $src . '" alt="" '
                             . 'title="' . $title_text . '" srcset="' . $srcset . '" sizes="' . $sizes . '" class="wp-image">'
