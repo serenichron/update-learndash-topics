@@ -8,7 +8,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TSTPREP_CC_VERSION', '2.0.12-alpha');
+define('TSTPREP_CC_VERSION', '2.0.20-alpha');
 define('TSTPREP_CC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TSTPREP_CC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
