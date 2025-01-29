@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.20-alpha] - 2025-01-29
+### Added
+- n/a
+
+### Changed
+- n/a
+
+### Fixed
+- Fixed incrementation of $module_counts variable logic
+
 ## [2.0.19-alpha] - 2025-01-27
 ### Added
 - n/a
