@@ -22,10 +22,7 @@ require_once TSTPREP_CC_PLUGIN_DIR . 'includes/class-content-processor.php';
 function tstprep_cc_init() {
     new TSTPrep_CC_Admin_Page();
     new TSTPrep_CC_Bulk_Cleanup();
-    new TSTPrep_CC_Ajax_Handlers(); // Add this line
+    new TSTPrep_CC_Ajax_Handlers();
 }
-
-
 add_action('plugins_loaded', 'tstprep_cc_init');
-
-add_action('wp_ajax_tstprep_cc_download_log', array($ajax_handler, 'download_log'));
+add_action('wp_ajax_tstprep_cc_download_log', array('TSTPrep_CC_Ajax_Handlers', 'download_log'));
