@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.21-alpha] - 2025-02-11
+### Added
+- n/a
+
+### Changed
+- n/a
+
+### Fixed
+- Undefined array issue on Download Log
+
 ## [2.0.20-alpha] - 2025-01-29
 ### Added
 - n/a
