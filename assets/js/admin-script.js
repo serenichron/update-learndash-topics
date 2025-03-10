@@ -44,7 +44,23 @@
 
         function processCleanup(courseIds, lessonIds, topicIds, cleanupType, offset = 0) {
             $submitButton.prop('disabled', true);
-            $resultsArea.html('<p>Processing... Please do not close this page.</p>');
+            
+            // Create progress bar if not already present
+            if ($('#tstprep-cc-progress-container').length === 0) {
+                $resultsArea.html('<div id="tstprep-cc-progress-container">' +
+                    '<div class="progress-bar-wrapper">' +
+                    '<div id="tstprep-cc-progress-bar" style="width: 0%; background-color: #0073aa; height: 20px; border-radius: 3px;"></div>' +
+                    '</div>' +
+                    '<div id="tstprep-cc-progress-text">Processing... Please do not close this page. (0%)</div>' +
+                    '</div>' +
+                    '<div id="tstprep-cc-progress-log" style="margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;"></div>' +
+                    '<div id="tstprep-cc-processed-items"></div>');
+            }
+            
+            var $progressBar = $('#tstprep-cc-progress-bar');
+            var $progressText = $('#tstprep-cc-progress-text');
+            var $progressLog = $('#tstprep-cc-progress-log');
+            var $processedItems = $('#tstprep-cc-processed-items');
 
             $.ajax({
                 url: ajaxurl,
@@ -60,21 +76,41 @@
                 },
                 success: function(response) {
                     if (response.success) {
+                        // Update progress log messages
+                        if (response.data.progress_log && response.data.progress_log.length > 0) {
+                            $.each(response.data.progress_log, function(index, logItem) {
+                                if (logItem.type === 'progress') {
+                                    // Update progress bar if percentage is available
+                                    if (logItem.percentage !== undefined) {
+                                        $progressBar.css('width', logItem.percentage + '%');
+                                        $progressText.text('Processing... Please do not close this page. (' + logItem.percentage + '%)');
+                                    }
+                                    
+                                    // Add log message
+                                    $progressLog.append('<p>' + logItem.message + '</p>');
+                                    
+                                    // Auto-scroll to bottom of log
+                                    $progressLog.scrollTop($progressLog[0].scrollHeight);
+                                }
+                            });
+                        }
+                        
+                        // Display processed items
                         $.each(response.data.processed_items, function(index, item) {
                             switch(item.type) {
                                 case 'lesson':
                                 case 'topic':
-                                    $resultsArea.append('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
-                                    $resultsArea.append('<details><summary>View changes</summary>');
-                                    $resultsArea.append('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
-                                    $resultsArea.append('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
-                                    $resultsArea.append('</details>');
+                                    $processedItems.append('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
+                                    $processedItems.append('<details><summary>View changes</summary>');
+                                    $processedItems.append('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
+                                    $processedItems.append('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
+                                    $processedItems.append('</details>');
                                     break;
                                 case 'error':
-                                    $resultsArea.append('<p class="error">' + item.message + '</p>');
+                                    $processedItems.append('<p class="error">' + item.message + '</p>');
                                     break;
                                 case 'info':
-                                    $resultsArea.append('<p class="info">' + item.message + '</p>');
+                                    $processedItems.append('<p class="info">' + item.message + '</p>');
                                     break;
                             }
                         });
@@ -84,8 +120,12 @@
                             processCleanup(courseIds, lessonIds, topicIds, cleanupType, response.data.offset);
                         } else {
                             console.log('Processing complete, adding download button');
-                            $resultsArea.append('<p>Cleanup completed successfully!</p>');
-                            $resultsArea.append('<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>');
+                            $progressText.text('Cleanup completed successfully! (100%)');
+                            $progressBar.css('width', '100%');
+                            $processedItems.append('<div class="completion-message" style="margin-top: 15px;">' +
+                                '<p>Cleanup completed successfully!</p>' +
+                                '<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>' +
+                                '</div>');
                             console.log('Download button added, log_id:', response.data.log_id);
                             $submitButton.prop('disabled', false);
                         }

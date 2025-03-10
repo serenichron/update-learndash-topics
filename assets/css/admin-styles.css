@@ -85,6 +85,64 @@
     list-style-type: disc;
 }
 
+/* Progress Bar Styles */
+#tstprep-cc-progress-container {
+    margin-bottom: 20px;
+}
+
+.progress-bar-wrapper {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    height: 20px;
+    overflow: hidden;
+}
+
+#tstprep-cc-progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+#tstprep-cc-progress-text {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+#tstprep-cc-progress-log {
+    border: 1px solid #ddd;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+    margin-bottom: 20px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+#tstprep-cc-progress-log p {
+    margin: 3px 0;
+    line-height: 1.4;
+}
+
+#tstprep-cc-processed-items h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.completion-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 15px;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.download-log {
+    margin-top: 10px !important;
+    display: inline-block;
+}
+
 /* Select2 Custom Styles */
 .select2-container--default .select2-selection--single {
     border-color: #ddd;
