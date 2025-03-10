@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.22-alpha] - 2025-03-10
+### Added
+- n/a
+
+### Changed
+- n/a
+
+### Fixed
+- Fixed SQL search issue where filters were improperly removed
+- Fixed PHP fatal error when downloading cleanup logs
+
 ## [2.0.21-alpha] - 2025-02-11
 ### Added
 - n/a

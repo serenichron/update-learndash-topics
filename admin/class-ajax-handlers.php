@@ -20,8 +20,8 @@ class TSTPrep_CC_Ajax_Handlers {
                 // Debugging: Log the normalized search term
                 error_log('Normalized Search Term (Courses): ' . $search);
             
-                // Add a custom filter for the `posts_where` clause
-                add_filter('posts_where', function ($where) use ($search) {
+                // Create a named function for the filter
+                $custom_where_filter = function ($where) use ($search) {
                     global $wpdb;
             
                     if (!empty($search)) {
@@ -32,7 +32,10 @@ class TSTPrep_CC_Ajax_Handlers {
                     }
             
                     return $where;
-                });
+                };
+                
+                // Add the filter using the function variable
+                add_filter('posts_where', $custom_where_filter);
             
                 // WP_Query arguments
                 $args = array(
@@ -62,7 +65,7 @@ class TSTPrep_CC_Ajax_Handlers {
             
                 // Reset the query and remove the filter
                 wp_reset_postdata();
-                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+                remove_filter('posts_where', $custom_where_filter); // Remove the specific filter
             
                 // Return results
                 wp_send_json_success($results);
@@ -79,8 +82,8 @@ class TSTPrep_CC_Ajax_Handlers {
                 // Debugging: Log the normalized search term
                 error_log('Normalized Search Term (Lessons): ' . $search);
             
-                // Add a custom filter for the `posts_where` clause
-                add_filter('posts_where', function ($where) use ($search) {
+                // Create a named function for the filter
+                $custom_where_filter = function ($where) use ($search) {
                     global $wpdb;
             
                     if (!empty($search)) {
@@ -91,7 +94,10 @@ class TSTPrep_CC_Ajax_Handlers {
                     }
             
                     return $where;
-                });
+                };
+                
+                // Add the filter using the function variable
+                add_filter('posts_where', $custom_where_filter);
             
                 // WP_Query arguments
                 $args = array(
@@ -121,7 +127,7 @@ class TSTPrep_CC_Ajax_Handlers {
             
                 // Reset the query and remove the filter
                 wp_reset_postdata();
-                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+                remove_filter('posts_where', $custom_where_filter); // Remove the specific filter
             
                 // Return results
                 wp_send_json_success($results);
@@ -138,8 +144,8 @@ class TSTPrep_CC_Ajax_Handlers {
                 // Debugging: Log the normalized search term
                 error_log('Normalized Search Term (Topics): ' . $search);
             
-                // Add a custom filter for the `posts_where` clause
-                add_filter('posts_where', function ($where) use ($search) {
+                // Create a named function for the filter
+                $custom_where_filter = function ($where) use ($search) {
                     global $wpdb;
             
                     if (!empty($search)) {
@@ -150,7 +156,10 @@ class TSTPrep_CC_Ajax_Handlers {
                     }
             
                     return $where;
-                });
+                };
+                
+                // Add the filter using the function variable
+                add_filter('posts_where', $custom_where_filter);
             
                 // WP_Query arguments
                 $args = array(
@@ -180,7 +189,7 @@ class TSTPrep_CC_Ajax_Handlers {
             
                 // Reset the query and remove the filter
                 wp_reset_postdata();
-                remove_filter('posts_where', '__return_null'); // Ensure the filter doesn't persist
+                remove_filter('posts_where', $custom_where_filter); // Remove the specific filter
             
                 // Return results
                 wp_send_json_success($results);
