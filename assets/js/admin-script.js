@@ -42,13 +42,13 @@
             allowClear: true
         });
 
-        function processCleanup(courseIds, lessonIds, topicIds, cleanupType, offset = 0) {
+        function processCleanup(courseIds, lessonIds, topicIds, cleanupType, sessionId = null) {
             $submitButton.prop('disabled', true);
             
             // Create progress bar if not already present
             if ($('#tstprep-cc-progress-container').length === 0) {
                 $resultsArea.html('<div id="tstprep-cc-progress-container">' +
-                    '<div class="progress-bar-wrapper">' +
+                    '<div class="progress-bar-wrapper" style="background-color: #f0f0f0; border-radius: 3px; margin-bottom: 10px;">' +
                     '<div id="tstprep-cc-progress-bar" style="width: 0%; background-color: #0073aa; height: 20px; border-radius: 3px;"></div>' +
                     '</div>' +
                     '<div id="tstprep-cc-progress-text">Processing... Please do not close this page. (0%)</div>' +
@@ -62,83 +62,115 @@
             var $progressLog = $('#tstprep-cc-progress-log');
             var $processedItems = $('#tstprep-cc-processed-items');
 
+            // Prepare request data
+            var requestData = {
+                action: 'tstprep_cc_process_cleanup',
+                nonce: tstprep_cc_vars.nonce
+            };
+
+            // If we have a session ID, we're continuing an existing process
+            if (sessionId) {
+                requestData.session_id = sessionId;
+            } else {
+                // Initial request needs selected items
+                requestData.course_ids = courseIds;
+                requestData.lesson_ids = lessonIds;
+                requestData.topic_ids = topicIds;
+                requestData.cleanup_type = cleanupType;
+            }
+
             $.ajax({
                 url: ajaxurl,
                 method: 'POST',
-                data: {
-                    action: 'tstprep_cc_process_cleanup',
-                    course_ids: courseIds,
-                    lesson_ids: lessonIds,
-                    topic_ids: topicIds,
-                    cleanup_type: cleanupType,
-                    offset: offset,
-                    nonce: tstprep_cc_vars.nonce
-                },
+                data: requestData,
                 success: function(response) {
                     if (response.success) {
+                        // Get the session ID for continuation
+                        var currentSessionId = response.data.session_id;
+                        
+                        // Update progress percentage
+                        if (response.data.percentage !== undefined) {
+                            $progressBar.css('width', response.data.percentage + '%');
+                            $progressText.text('Processing... Please do not close this page. (' + response.data.percentage + '%)');
+                        }
+                        
                         // Update progress log messages
                         if (response.data.progress_log && response.data.progress_log.length > 0) {
-                            $.each(response.data.progress_log, function(index, logItem) {
+                            // Only append new log messages
+                            var startIndex = sessionId ? response.data.progress_log.length - 2 : 0; // Skip older messages on continuation
+                            if (startIndex < 0) startIndex = 0;
+                            
+                            for (var i = startIndex; i < response.data.progress_log.length; i++) {
+                                var logItem = response.data.progress_log[i];
                                 if (logItem.type === 'progress') {
-                                    // Update progress bar if percentage is available
-                                    if (logItem.percentage !== undefined) {
-                                        $progressBar.css('width', logItem.percentage + '%');
-                                        $progressText.text('Processing... Please do not close this page. (' + logItem.percentage + '%)');
-                                    }
-                                    
                                     // Add log message
                                     $progressLog.append('<p>' + logItem.message + '</p>');
-                                    
-                                    // Auto-scroll to bottom of log
-                                    $progressLog.scrollTop($progressLog[0].scrollHeight);
                                 }
-                            });
+                            }
+                            
+                            // Auto-scroll to bottom of log
+                            $progressLog.scrollTop($progressLog[0].scrollHeight);
                         }
                         
                         // Display processed items
-                        $.each(response.data.processed_items, function(index, item) {
-                            switch(item.type) {
-                                case 'lesson':
-                                case 'topic':
-                                    $processedItems.append('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
-                                    $processedItems.append('<details><summary>View changes</summary>');
-                                    $processedItems.append('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
-                                    $processedItems.append('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
-                                    $processedItems.append('</details>');
-                                    break;
-                                case 'error':
-                                    $processedItems.append('<p class="error">' + item.message + '</p>');
-                                    break;
-                                case 'info':
-                                    $processedItems.append('<p class="info">' + item.message + '</p>');
-                                    break;
-                            }
-                        });
+                        if (response.data.processed_items && response.data.processed_items.length > 0) {
+                            $.each(response.data.processed_items, function(index, item) {
+                                switch(item.type) {
+                                    case 'lesson':
+                                    case 'topic':
+                                        $processedItems.append('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
+                                        $processedItems.append('<details><summary>View changes</summary>');
+                                        $processedItems.append('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
+                                        $processedItems.append('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
+                                        $processedItems.append('</details>');
+                                        break;
+                                    case 'error':
+                                        $processedItems.append('<p class="error">' + item.message + '</p>');
+                                        break;
+                                    case 'info':
+                                        $processedItems.append('<p class="info">' + item.message + '</p>');
+                                        break;
+                                }
+                            });
+                        }
 
                         if (response.data.continue) {
-                            console.log('Continuing processing, offset:', response.data.offset);
-                            processCleanup(courseIds, lessonIds, topicIds, cleanupType, response.data.offset);
+                            // If processing should continue, make another request after a short delay
+                            // The delay helps prevent server overload and gives the user time to see progress
+                            setTimeout(function() {
+                                processCleanup(null, null, null, null, currentSessionId);
+                            }, 500); // 500ms delay between batches
                         } else {
-                            console.log('Processing complete, adding download button');
+                            // Processing complete
                             $progressText.text('Cleanup completed successfully! (100%)');
                             $progressBar.css('width', '100%');
                             $processedItems.append('<div class="completion-message" style="margin-top: 15px;">' +
                                 '<p>Cleanup completed successfully!</p>' +
                                 '<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>' +
                                 '</div>');
-                            console.log('Download button added, log_id:', response.data.log_id);
                             $submitButton.prop('disabled', false);
                         }
                     } else {
                         console.error('Error in cleanup process:', response.data);
-                        $resultsArea.html('<p>Error: ' + response.data + '</p>');
+                        $resultsArea.append('<p class="error">Error: ' + response.data + '</p>');
                         $submitButton.prop('disabled', false);
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('AJAX error:', textStatus, errorThrown);
-                    $resultsArea.html('<p>An error occurred: ' + textStatus + ' - ' + errorThrown + '</p>');
-                    $submitButton.prop('disabled', false);
+                    
+                    // If there's a timeout or server error, we can try to resume after a brief pause
+                    if (sessionId && (textStatus === 'timeout' || jqXHR.status >= 500)) {
+                        $progressLog.append('<p class="error">Temporary error: ' + textStatus + '. Retrying in 3 seconds...</p>');
+                        $progressLog.scrollTop($progressLog[0].scrollHeight);
+                        
+                        setTimeout(function() {
+                            processCleanup(null, null, null, null, sessionId);
+                        }, 3000); // Wait 3 seconds before retrying
+                    } else {
+                        $resultsArea.append('<p class="error">An error occurred: ' + textStatus + ' - ' + errorThrown + '</p>');
+                        $submitButton.prop('disabled', false);
+                    }
                 }
             });
         }

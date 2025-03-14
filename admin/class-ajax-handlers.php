@@ -1,12 +1,14 @@
 <?php
 class TSTPrep_CC_Ajax_Handlers {
-    private $chunk_size = 5; // Process 5 lessons at a time
+    private $chunk_size = 10; // Process 10 topics at a time
+    private $state_transient_prefix = 'tstprep_cc_state_';
 
     public function __construct() {
                 add_action('wp_ajax_tstprep_cc_search_courses', array($this, 'search_courses'));
                 add_action('wp_ajax_tstprep_cc_search_lessons', array($this, 'search_lessons'));
                 add_action('wp_ajax_tstprep_cc_search_topics', array($this, 'search_topics'));
                 add_action('wp_ajax_tstprep_cc_process_cleanup', array($this, 'process_cleanup'));
+                add_action('wp_ajax_tstprep_cc_download_log', array($this, 'download_log'));
             }
         
             public function search_courses() {
@@ -197,176 +199,239 @@ class TSTPrep_CC_Ajax_Handlers {
 
             public function process_cleanup() {
                 check_ajax_referer('tstprep_cc_nonce', 'nonce');
-                $course_ids = isset($_POST['course_ids']) ? array_map('intval', $_POST['course_ids']) : array();
-                $lesson_ids = isset($_POST['lesson_ids']) ? array_map('intval', $_POST['lesson_ids']) : array();
-                $topic_ids = isset($_POST['topic_ids']) ? array_map('intval', $_POST['topic_ids']) : array();
-                $cleanup_type = isset($_POST['cleanup_type']) ? sanitize_text_field($_POST['cleanup_type']) : '';
-                $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
-        
-                if (empty($course_ids) && empty($lesson_ids) && empty($topic_ids)) {
-                    wp_send_json_error('Please select at least one course, lesson, or topic');
-                }
-        
-                if (!$cleanup_type) {
-                    wp_send_json_error('Please select a cleanup type');
-                }
-        
-                $processed_items = array();
-                $progress_log = array(); // Track progress for logging
-                $continue_processing = false;
                 
-                // Calculate total items to process for progress tracking
-                $total_items = 0;
-                $total_processed = 0;
+                // Get initialization parameters or load from state
+                $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : uniqid('cleanup_');
+                $state_key = $this->state_transient_prefix . $session_id;
                 
-                // Count course lessons
-                foreach ($course_ids as $course_id) {
-                    $course_lesson_ids = learndash_course_get_steps_by_type($course_id, 'sfwd-lessons');
-                    if (is_array($course_lesson_ids) && !empty($course_lesson_ids)) {
-                        $total_items += count($course_lesson_ids);
-                        // Count topics in each lesson
-                        foreach ($course_lesson_ids as $l_id) {
-                            $topics = learndash_get_topic_list($l_id);
-                            $total_items += is_array($topics) ? count($topics) : 0;
-                        }
+                // Get state from transient or initialize new state
+                $state = get_transient($state_key);
+                
+                if ($state === false) {
+                    // This is a new cleanup session, initialize state
+                    $course_ids = isset($_POST['course_ids']) ? array_map('intval', $_POST['course_ids']) : array();
+                    $lesson_ids = isset($_POST['lesson_ids']) ? array_map('intval', $_POST['lesson_ids']) : array();
+                    $topic_ids = isset($_POST['topic_ids']) ? array_map('intval', $_POST['topic_ids']) : array();
+                    $cleanup_type = isset($_POST['cleanup_type']) ? sanitize_text_field($_POST['cleanup_type']) : '';
+                    
+                    if (empty($course_ids) && empty($lesson_ids) && empty($topic_ids)) {
+                        wp_send_json_error('Please select at least one course, lesson, or topic');
+                        return;
                     }
-                }
-                
-                // Count individual lessons and their topics
-                foreach ($lesson_ids as $lesson_id) {
-                    $total_items++;
-                    $topics = learndash_get_topic_list($lesson_id);
-                    $total_items += is_array($topics) ? count($topics) : 0;
-                }
-                
-                // Count individual topics
-                $total_items += count($topic_ids);
-                
-                // Add initial progress
-                $progress_log[] = array(
-                    'type' => 'progress',
-                    'message' => "Starting cleanup process - {$offset} of {$total_items} items processed",
-                    'percentage' => $offset > 0 ? round(($offset / $total_items) * 100) : 0
-                );
-
-                // Process courses
-                foreach ($course_ids as $course_id) {
-                    $course_lesson_ids = learndash_course_get_steps_by_type($course_id, 'sfwd-lessons');
-                    if (is_array($course_lesson_ids) && !empty($course_lesson_ids)) {
-                        $course_title = get_the_title($course_id);
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "Processing course: {$course_title} (ID: {$course_id})"
-                        );
-                        
-                        $chunk = array_slice($course_lesson_ids, $offset, $this->chunk_size);
-                        foreach ($chunk as $lesson_id) {
-                            $lesson_title = get_the_title($lesson_id);
-                            $progress_log[] = array(
+                    
+                    if (!$cleanup_type) {
+                        wp_send_json_error('Please select a cleanup type');
+                        return;
+                    }
+                    
+                    // Create an organized queue of all items to process
+                    $queue = $this->build_processing_queue($course_ids, $lesson_ids, $topic_ids);
+                    
+                    // Initialize the state object
+                    $state = array(
+                        'session_id' => $session_id,
+                        'course_ids' => $course_ids,
+                        'lesson_ids' => $lesson_ids,
+                        'topic_ids' => $topic_ids,
+                        'cleanup_type' => $cleanup_type,
+                        'queue' => $queue,
+                        'total_items' => count($queue),
+                        'processed_count' => 0,
+                        'processed_items' => array(),
+                        'log_entries' => array(),
+                        'progress_log' => array(
+                            array(
                                 'type' => 'progress',
-                                'message' => "Processing lesson: {$lesson_title} (ID: {$lesson_id})",
-                            );
-                            
-                            $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
-                            $total_processed++;
-                            
-                            // Update progress after each lesson (including its topics)
-                            $topics = learndash_get_topic_list($lesson_id);
-                            $topic_count = is_array($topics) ? count($topics) : 0;
-                            $total_processed += $topic_count;
-                            
-                            $percentage = round(($total_processed / $total_items) * 100);
-                            $progress_log[] = array(
-                                'type' => 'progress',
-                                'message' => "Processed {$total_processed} of {$total_items} items",
-                                'percentage' => $percentage
-                            );
-                        }
-                        
-                        if (count($course_lesson_ids) > $offset + $this->chunk_size) {
-                            $continue_processing = true;
-                            break;
-                        }
-                    } else {
-                        $processed_items[] = array(
-                            'type' => 'info', 
-                            'message' => "No lessons found for Course ID: $course_id"
-                        );
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "No lessons found for Course ID: $course_id"
-                        );
-                    }
+                                'message' => "Starting cleanup process - 0 of " . count($queue) . " items processed",
+                                'percentage' => 0
+                            )
+                        ),
+                        'current_course' => null,
+                        'current_lesson' => null,
+                        'is_complete' => false,
+                        'log_id' => null
+                    );
+                    
+                    // Save the initial state
+                    set_transient($state_key, $state, 6 * HOUR_IN_SECONDS); // Keep state for 6 hours
                 }
-        
-                // If we're not continuing to process courses, move on to individual lessons
-                if (!$continue_processing) {
-                    foreach ($lesson_ids as $lesson_id) {
-                        $lesson_title = get_the_title($lesson_id);
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "Processing individual lesson: {$lesson_title} (ID: {$lesson_id})"
-                        );
-                        
-                        $this->process_lesson($lesson_id, $cleanup_type, $processed_items);
-                        $total_processed++;
-                        
-                        // Update progress
-                        $percentage = round(($total_processed / $total_items) * 100);
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "Processed {$total_processed} of {$total_items} items",
-                            'percentage' => $percentage
-                        );
-                    }
-                }
-        
-                // If we're not continuing to process courses or lessons, move on to individual topics
-                if (!$continue_processing) {
-                    foreach ($topic_ids as $topic_id) {
-                        $topic_title = get_the_title($topic_id);
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "Processing individual topic: {$topic_title} (ID: {$topic_id})"
-                        );
-                        
-                        $this->process_topic($topic_id, $cleanup_type, $processed_items);
-                        $total_processed++;
-                        
-                        // Update progress
-                        $percentage = round(($total_processed / $total_items) * 100);
-                        $progress_log[] = array(
-                            'type' => 'progress',
-                            'message' => "Processed {$total_processed} of {$total_items} items",
-                            'percentage' => $percentage
-                        );
-                    }
-                }
-        
-                $log_content = $this->generate_log_content($processed_items);
-                $log_id = uniqid('cleanup_log_');
-                $set_transient_result = set_transient($log_id, $log_content, HOUR_IN_SECONDS);
                 
-                error_log("Cleanup process completed. Log ID: $log_id");
-                error_log("Log content (first 100 chars): " . substr($log_content, 0, 100));
-                error_log("Set transient result: " . ($set_transient_result ? 'true' : 'false'));
-            
-                // Add completion message to progress log
-                if (!$continue_processing) {
-                    $progress_log[] = array(
+                // Process the next batch of items
+                $state = $this->process_batch($state);
+                
+                // Save the updated state
+                set_transient($state_key, $state, 6 * HOUR_IN_SECONDS);
+                
+                // Check if all processing is complete
+                if ($state['is_complete']) {
+                    // Generate and store the log file
+                    $log_content = $this->generate_log_content($state['processed_items']);
+                    $log_id = uniqid('cleanup_log_');
+                    set_transient($log_id, $log_content, HOUR_IN_SECONDS);
+                    $state['log_id'] = $log_id;
+                    
+                    // Update the state one last time with the log ID
+                    set_transient($state_key, $state, 6 * HOUR_IN_SECONDS);
+                    
+                    // Add completion message to progress log
+                    $state['progress_log'][] = array(
                         'type' => 'progress',
                         'message' => "Cleanup process completed successfully!",
                         'percentage' => 100
                     );
                 }
                 
-                wp_send_json_success(array(
-                    'processed_items' => $processed_items,
-                    'progress_log' => $progress_log,
-                    'continue' => $continue_processing,
-                    'offset' => $offset + $this->chunk_size,
-                    'log_id' => $log_id
-                ));
+                // Prepare response data
+                $response = array(
+                    'session_id' => $session_id,
+                    'progress_log' => $state['progress_log'],
+                    'processed_items' => array_slice($state['processed_items'], -10), // Only return the most recent items
+                    'continue' => !$state['is_complete'],
+                    'total_items' => $state['total_items'],
+                    'processed_count' => $state['processed_count'],
+                    'percentage' => $state['total_items'] > 0 ? round(($state['processed_count'] / $state['total_items']) * 100) : 0
+                );
+                
+                if ($state['is_complete'] && isset($state['log_id'])) {
+                    $response['log_id'] = $state['log_id'];
+                }
+                
+                wp_send_json_success($response);
+            }
+            
+            /**
+             * Builds a flat processing queue of all items that need to be processed
+             */
+            private function build_processing_queue($course_ids, $lesson_ids, $topic_ids) {
+                $queue = array();
+                
+                // Add course lessons and topics to queue
+                foreach ($course_ids as $course_id) {
+                    $course_lesson_ids = learndash_course_get_steps_by_type($course_id, 'sfwd-lessons');
+                    
+                    if (is_array($course_lesson_ids) && !empty($course_lesson_ids)) {
+                        foreach ($course_lesson_ids as $lesson_id) {
+                            // Add lesson to queue
+                            $queue[] = array(
+                                'type' => 'lesson',
+                                'id' => $lesson_id,
+                                'parent_course' => $course_id
+                            );
+                            
+                            // Add lesson topics to queue
+                            $topics = learndash_get_topic_list($lesson_id);
+                            if (is_array($topics) && !empty($topics)) {
+                                foreach ($topics as $topic) {
+                                    $queue[] = array(
+                                        'type' => 'topic',
+                                        'id' => $topic->ID,
+                                        'parent_lesson' => $lesson_id,
+                                        'parent_course' => $course_id
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Add individual lessons and their topics to queue
+                foreach ($lesson_ids as $lesson_id) {
+                    // Add lesson to queue
+                    $queue[] = array(
+                        'type' => 'lesson',
+                        'id' => $lesson_id
+                    );
+                    
+                    // Add lesson topics to queue
+                    $topics = learndash_get_topic_list($lesson_id);
+                    if (is_array($topics) && !empty($topics)) {
+                        foreach ($topics as $topic) {
+                            $queue[] = array(
+                                'type' => 'topic',
+                                'id' => $topic->ID,
+                                'parent_lesson' => $lesson_id
+                            );
+                        }
+                    }
+                }
+                
+                // Add individual topics to queue
+                foreach ($topic_ids as $topic_id) {
+                    $queue[] = array(
+                        'type' => 'topic',
+                        'id' => $topic_id
+                    );
+                }
+                
+                return $queue;
+            }
+            
+            /**
+             * Process a batch of items from the queue
+             */
+            private function process_batch($state) {
+                // Slice the next batch from the queue
+                $batch = array_slice($state['queue'], $state['processed_count'], $this->chunk_size);
+                
+                // If there's nothing left to process, mark as complete
+                if (empty($batch)) {
+                    $state['is_complete'] = true;
+                    return $state;
+                }
+                
+                // Process each item in the batch
+                foreach ($batch as $item) {
+                    // Update current course/lesson tracking for better progress reporting
+                    if (isset($item['parent_course']) && $item['parent_course'] !== $state['current_course']) {
+                        $state['current_course'] = $item['parent_course'];
+                        $course_title = get_the_title($item['parent_course']);
+                        $state['progress_log'][] = array(
+                            'type' => 'progress',
+                            'message' => "Processing course: {$course_title} (ID: {$item['parent_course']})"
+                        );
+                    }
+                    
+                    if ($item['type'] === 'lesson' || (isset($item['parent_lesson']) && $item['parent_lesson'] !== $state['current_lesson'])) {
+                        $lesson_id = ($item['type'] === 'lesson') ? $item['id'] : $item['parent_lesson'];
+                        $state['current_lesson'] = $lesson_id;
+                        $lesson_title = get_the_title($lesson_id);
+                        $state['progress_log'][] = array(
+                            'type' => 'progress',
+                            'message' => "Processing lesson: {$lesson_title} (ID: {$lesson_id})"
+                        );
+                    }
+                    
+                    // Process the item based on its type
+                    if ($item['type'] === 'lesson') {
+                        $this->process_lesson($item['id'], $state['cleanup_type'], $state['processed_items']);
+                    } else if ($item['type'] === 'topic') {
+                        // If it's a topic, also log that we're processing it
+                        $topic_title = get_the_title($item['id']);
+                        $state['progress_log'][] = array(
+                            'type' => 'progress',
+                            'message' => "Processing topic: {$topic_title} (ID: {$item['id']})"
+                        );
+                        $this->process_topic($item['id'], $state['cleanup_type'], $state['processed_items']);
+                    }
+                    
+                    // Increment counter and update progress
+                    $state['processed_count']++;
+                    $percentage = round(($state['processed_count'] / $state['total_items']) * 100);
+                    
+                    // Add progress update
+                    $state['progress_log'][] = array(
+                        'type' => 'progress',
+                        'message' => "Processed {$state['processed_count']} of {$state['total_items']} items",
+                        'percentage' => $percentage
+                    );
+                }
+                
+                // Check if we've processed everything
+                if ($state['processed_count'] >= $state['total_items']) {
+                    $state['is_complete'] = true;
+                }
+                
+                return $state;
             }
                         
             private function generate_log_content($processed_items) {

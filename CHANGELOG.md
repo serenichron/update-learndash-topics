@@ -2,16 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.22-alpha] - 2025-03-10
+## [2.0.23-alpha] - 2025-03-14
 ### Added
-- n/a
+- Implemented robust batch processing system to handle large courses without timeouts
+- Added state persistence between AJAX requests for reliable long-running processes
+- Created detailed progress tracking with real-time UI updates
 
 ### Changed
-- n/a
+- Restructured cleanup process to use a queue-based approach
+- Improved JavaScript to handle incremental processing with better error recovery
+- Increased batch size to 10 topics for optimal performance
 
 ### Fixed
-- Fixed SQL search issue where filters were improperly removed
-- Fixed PHP fatal error when downloading cleanup logs
+- Resolved timeout issues when processing large courses with many topics
+- Fixed progress tracking to accurately show completion percentage
 
 ## [2.0.21-alpha] - 2025-02-11
 ### Added
