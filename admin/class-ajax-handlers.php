@@ -367,10 +367,14 @@ class TSTPrep_CC_Ajax_Handlers {
             }
             
             /**
-             * Process a batch of items from the queue
+             * Process a batch of items from the queue - but more granularly for progress reporting
              */
             private function process_batch($state) {
-                // Slice the next batch from the queue
+                // We'll only process one item at a time to provide the most granular updates
+                // but internally we'll still use the chunk concept to control how many items 
+                // are processed in a single AJAX request
+                
+                // Get the next batch for processing
                 $batch = array_slice($state['queue'], $state['processed_count'], $this->chunk_size);
                 
                 // If there's nothing left to process, mark as complete
@@ -379,8 +383,16 @@ class TSTPrep_CC_Ajax_Handlers {
                     return $state;
                 }
                 
-                // Process each item in the batch
+                // Track how many items we've processed in this batch
+                $batch_processed = 0;
+                $max_per_request = $this->chunk_size;
+                
+                // Process items one by one until we hit our per-request limit
                 foreach ($batch as $item) {
+                    if ($batch_processed >= $max_per_request) {
+                        break; // Don't process more than our limit per request
+                    }
+                    
                     // Update current course/lesson tracking for better progress reporting
                     if (isset($item['parent_course']) && $item['parent_course'] !== $state['current_course']) {
                         $state['current_course'] = $item['parent_course'];
@@ -418,12 +430,14 @@ class TSTPrep_CC_Ajax_Handlers {
                     $state['processed_count']++;
                     $percentage = round(($state['processed_count'] / $state['total_items']) * 100);
                     
-                    // Add progress update
+                    // Add progress update after EACH item
                     $state['progress_log'][] = array(
                         'type' => 'progress',
                         'message' => "Processed {$state['processed_count']} of {$state['total_items']} items",
                         'percentage' => $percentage
                     );
+                    
+                    $batch_processed++;
                 }
                 
                 // Check if we've processed everything

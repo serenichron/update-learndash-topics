@@ -96,15 +96,24 @@
                         
                         // Update progress log messages
                         if (response.data.progress_log && response.data.progress_log.length > 0) {
-                            // Only append new log messages
-                            var startIndex = sessionId ? response.data.progress_log.length - 2 : 0; // Skip older messages on continuation
-                            if (startIndex < 0) startIndex = 0;
+                            // Determine how many new messages to display
+                            // If this is a continuation, we may need to display more than just the last couple messages
+                            // since we're now processing one item at a time
                             
-                            for (var i = startIndex; i < response.data.progress_log.length; i++) {
-                                var logItem = response.data.progress_log[i];
-                                if (logItem.type === 'progress') {
-                                    // Add log message
-                                    $progressLog.append('<p>' + logItem.message + '</p>');
+                            // Store the last message ID we've seen to avoid duplicates
+                            if (!window.lastSeenMessageIndex) {
+                                window.lastSeenMessageIndex = -1;
+                            }
+                            
+                            // Display all new messages
+                            for (var i = 0; i < response.data.progress_log.length; i++) {
+                                if (i > window.lastSeenMessageIndex) {
+                                    var logItem = response.data.progress_log[i];
+                                    if (logItem.type === 'progress') {
+                                        // Add log message
+                                        $progressLog.append('<p>' + logItem.message + '</p>');
+                                    }
+                                    window.lastSeenMessageIndex = i;
                                 }
                             }
                             

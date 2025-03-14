@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.24-alpha] - 2025-03-14
+### Changed
+- Enhanced progress reporting to show item-by-item updates
+- Improved JavaScript to avoid duplicate progress messages
+- Optimized batch processing for more granular feedback
+
 ## [2.0.23-alpha] - 2025-03-14
 ### Added
 - Implemented robust batch processing system to handle large courses without timeouts
