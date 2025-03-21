@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.25-alpha] - 2025-03-21
+### Added
+- Added progress bar and percentage indicators to the cleanup process
+- Implemented state-based processing system that maintains progress across AJAX requests
+
+### Changed
+- Completely redesigned the backend processing to minimize database load
+- Improved chunking implementation at all hierarchical levels (courses, lessons, topics)
+- Combined read and write database operations to reduce queries
+- Added optimization to only update content when changes are detected
+
+### Fixed
+- Fixed excessive database load during large course processing
+
 ## [2.0.12-alpha] - 2023-12-14
 ### Added
 - Restored before/after content comparison for processed lessons and topics
