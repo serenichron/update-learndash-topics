@@ -42,9 +42,20 @@
             allowClear: true
         });
 
-        function processCleanup(courseIds, lessonIds, topicIds, cleanupType, offset = 0) {
+        function processCleanup(courseIds, lessonIds, topicIds, cleanupType, stateId = '') {
             $submitButton.prop('disabled', true);
-            $resultsArea.html('<p>Processing... Please do not close this page.</p>');
+            
+            if (!stateId) {
+                // First run, initialize the progress bar
+                $resultsArea.html('<p>Processing... Please do not close this page.</p>');
+                $resultsArea.append('<div class="progress-bar-container"><div class="progress-bar" style="width: 0%"></div></div>');
+                $resultsArea.append('<p class="progress-text">0% complete (preparing...)</p>');
+                $resultsArea.append('<div class="processed-items"></div>');
+            }
+            
+            var $progressBar = $resultsArea.find('.progress-bar');
+            var $progressText = $resultsArea.find('.progress-text');
+            var $processedItems = $resultsArea.find('.processed-items');
 
             $.ajax({
                 url: ajaxurl,
@@ -55,49 +66,58 @@
                     lesson_ids: lessonIds,
                     topic_ids: topicIds,
                     cleanup_type: cleanupType,
-                    offset: offset,
+                    state_id: stateId,
                     nonce: tstprep_cc_vars.nonce
                 },
                 success: function(response) {
                     if (response.success) {
+                        // Update progress bar
+                        if (response.data.progress) {
+                            $progressBar.css('width', response.data.progress + '%');
+                            $progressText.text(response.data.progress + '% complete (' + 
+                                (response.data.remaining ? response.data.remaining + ' items remaining' : 'finalizing...') + ')');
+                        }
+                        
+                        // Add processed items to the display
                         $.each(response.data.processed_items, function(index, item) {
                             switch(item.type) {
                                 case 'lesson':
                                 case 'topic':
-                                    $resultsArea.append('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
-                                    $resultsArea.append('<details><summary>View changes</summary>');
-                                    $resultsArea.append('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
-                                    $resultsArea.append('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
-                                    $resultsArea.append('</details>');
+                                    $processedItems.prepend('<h4>' + (item.type === 'lesson' ? 'Lesson' : 'Topic') + ' ID: ' + item.id + '</h4>');
+                                    $processedItems.prepend('<details><summary>View changes</summary>');
+                                    $processedItems.prepend('<h5>Before:</h5><pre class="content-display">' + escapeHtml(item.before) + '</pre>');
+                                    $processedItems.prepend('<h5>After:</h5><pre class="content-display">' + escapeHtml(item.after) + '</pre>');
+                                    $processedItems.prepend('</details>');
                                     break;
                                 case 'error':
-                                    $resultsArea.append('<p class="error">' + item.message + '</p>');
+                                    $processedItems.prepend('<p class="error">' + item.message + '</p>');
                                     break;
                                 case 'info':
-                                    $resultsArea.append('<p class="info">' + item.message + '</p>');
+                                    $processedItems.prepend('<p class="info">' + item.message + '</p>');
                                     break;
                             }
                         });
 
                         if (response.data.continue) {
-                            console.log('Continuing processing, offset:', response.data.offset);
-                            processCleanup(courseIds, lessonIds, topicIds, cleanupType, response.data.offset);
+                            // Continue processing with the state ID
+                            processCleanup(courseIds, lessonIds, topicIds, cleanupType, response.data.state_id);
                         } else {
-                            console.log('Processing complete, adding download button');
-                            $resultsArea.append('<p>Cleanup completed successfully!</p>');
-                            $resultsArea.append('<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>');
-                            console.log('Download button added, log_id:', response.data.log_id);
+                            // Processing complete
+                            $progressBar.css('width', '100%');
+                            $progressText.text('100% complete');
+                            $resultsArea.prepend('<p>Cleanup completed successfully!</p>');
+                            $resultsArea.prepend('<a href="#" class="button download-log" data-log-id="' + response.data.log_id + '">Download Log</a>');
                             $submitButton.prop('disabled', false);
                         }
                     } else {
                         console.error('Error in cleanup process:', response.data);
-                        $resultsArea.html('<p>Error: ' + response.data + '</p>');
+                        $resultsArea.prepend('<p class="error">Error: ' + response.data + '</p>');
                         $submitButton.prop('disabled', false);
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('AJAX error:', textStatus, errorThrown);
-                    $resultsArea.html('<p>An error occurred: ' + textStatus + ' - ' + errorThrown + '</p>');
+                    $resultsArea.prepend('<p class="error">An error occurred: ' + textStatus + ' - ' + errorThrown + '</p>');
                     $submitButton.prop('disabled', false);
                 }
             });
