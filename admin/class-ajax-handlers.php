@@ -495,61 +495,112 @@ class TSTPrep_CC_Ajax_Handlers {
                         
             
             private function process_lesson($lesson_id, $cleanup_type, &$processed_items) {
-                $lesson_content_before = get_post_field('post_content', $lesson_id);
-                $processed_content = TSTPrep_CC_Content_Processor::process_content($lesson_content_before, $cleanup_type);
-                $update_result = wp_update_post(array(
-                    'ID' => $lesson_id,
-                    'post_content' => $processed_content
-                ), true);
-            
-                if (is_wp_error($update_result)) {
+                global $wpdb;
+                
+                // Get content directly from database (single query)
+                $lesson_content_before = $wpdb->get_var($wpdb->prepare(
+                    "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d",
+                    $lesson_id
+                ));
+                
+                if ($lesson_content_before === null) {
                     $processed_items[] = array(
                         'type' => 'error',
-                        'message' => "Error updating Lesson ID: $lesson_id - " . $update_result->get_error_message()
+                        'message' => "Lesson ID: $lesson_id not found"
                     );
-                } else {
-                    $lesson_content_after = get_post_field('post_content', $lesson_id);
-                    $processed_items[] = array(
-                        'type' => 'lesson',
-                        'id' => $lesson_id,
-                        'before' => $lesson_content_before,
-                        'after' => $lesson_content_after
-                    );
+                    return;
                 }
-            
-                $topics = learndash_get_topic_list($lesson_id);
-                if (is_array($topics) && !empty($topics)) {
-                    foreach ($topics as $topic) {
-                        $this->process_topic($topic->ID, $cleanup_type, $processed_items);
+                
+                // Process the content
+                $processed_content = TSTPrep_CC_Content_Processor::process_content($lesson_content_before, $cleanup_type);
+                
+                // Only update if content actually changed
+                if ($processed_content !== $lesson_content_before) {
+                    $result = $wpdb->update(
+                        $wpdb->posts,
+                        array('post_content' => $processed_content),
+                        array('ID' => $lesson_id),
+                        array('%s'),
+                        array('%d')
+                    );
+                    
+                    if ($result === false) {
+                        $processed_items[] = array(
+                            'type' => 'error',
+                            'message' => "Error updating Lesson ID: $lesson_id - Database error"
+                        );
+                    } else {
+                        // Clean post cache to ensure hooks run
+                        clean_post_cache($lesson_id);
+                        
+                        $processed_items[] = array(
+                            'type' => 'lesson',
+                            'id' => $lesson_id,
+                            'before' => $lesson_content_before,
+                            'after' => $processed_content
+                        );
                     }
                 } else {
                     $processed_items[] = array(
                         'type' => 'info',
-                        'message' => "No topics found for Lesson ID: $lesson_id"
+                        'message' => "No changes needed for Lesson ID: $lesson_id"
                     );
                 }
+                
+                // Note: Topics are already added to the processing queue in build_processing_queue
+                // No need to process them here as this would cause duplicate processing
             }
             
             private function process_topic($topic_id, $cleanup_type, &$processed_items) {
-                $topic_content_before = get_post_field('post_content', $topic_id);
-                $processed_content = TSTPrep_CC_Content_Processor::process_content($topic_content_before, $cleanup_type);
-                $update_result = wp_update_post(array(
-                    'ID' => $topic_id,
-                    'post_content' => $processed_content
-                ), true);
-            
-                if (is_wp_error($update_result)) {
+                global $wpdb;
+                
+                // Get content directly from database (single query)
+                $topic_content_before = $wpdb->get_var($wpdb->prepare(
+                    "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d",
+                    $topic_id
+                ));
+                
+                if ($topic_content_before === null) {
                     $processed_items[] = array(
                         'type' => 'error',
-                        'message' => "Error updating Topic ID: $topic_id - " . $update_result->get_error_message()
+                        'message' => "Topic ID: $topic_id not found"
                     );
+                    return;
+                }
+                
+                // Process the content
+                $processed_content = TSTPrep_CC_Content_Processor::process_content($topic_content_before, $cleanup_type);
+                
+                // Only update if content actually changed
+                if ($processed_content !== $topic_content_before) {
+                    $result = $wpdb->update(
+                        $wpdb->posts,
+                        array('post_content' => $processed_content),
+                        array('ID' => $topic_id),
+                        array('%s'),
+                        array('%d')
+                    );
+                    
+                    if ($result === false) {
+                        $processed_items[] = array(
+                            'type' => 'error',
+                            'message' => "Error updating Topic ID: $topic_id - Database error"
+                        );
+                    } else {
+                        // Clean post cache to ensure hooks run
+                        clean_post_cache($topic_id);
+                        
+                        $processed_items[] = array(
+                            'type' => 'topic',
+                            'id' => $topic_id,
+                            'before' => $topic_content_before,
+                            'after' => $processed_content
+                        );
+                    }
                 } else {
-                    $topic_content_after = get_post_field('post_content', $topic_id);
                     $processed_items[] = array(
-                        'type' => 'topic',
-                        'id' => $topic_id,
-                        'before' => $topic_content_before,
-                        'after' => $topic_content_after
+                        'type' => 'info',
+                        'message' => "No changes needed for Topic ID: $topic_id"
                     );
                 }
             }

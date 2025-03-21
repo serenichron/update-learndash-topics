@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.26-alpha] - 2025-03-21
+### Changed
+- Optimized database operations to significantly reduce server load
+- Implemented direct database queries instead of using WordPress functions
+- Added content change detection to avoid unnecessary updates
+- Fixed duplicate topic processing issue by leveraging the existing queue system
+- Added proper post cache cleaning to ensure hooks run after direct updates
+
+## [2.0.25-alpha] - 2025-03-19
+### Added
+- Support for additional divi modules
+
+### Changed
+- Improved performance and reduced resource consumption
+- Enhanced database operations efficiency
+
 ## [2.0.24-alpha] - 2025-03-14
 ### Changed
 - Enhanced progress reporting to show item-by-item updates
